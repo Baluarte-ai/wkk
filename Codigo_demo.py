@@ -103,8 +103,8 @@ class LogoClientMock:
     def __init__(self):
         self.connected = False
         # Valores simulados de registros en el PLC
-        self.fuerza_minima = 280 + OFFSET      # Fuerza Mínima por defecto (280 kg)
-        self.fuerza_minima_off = 270 + OFFSET  # VW2
+        self.fuerza_minima = (60 * 3) + OFFSET  # Fuerza Mínima por defecto (60 kg, o 180 raw)
+        self.fuerza_minima_off = (56 * 3) + OFFSET  # VW2
         self.retardo_centesimas = 250          # 2.50 segundos
         self.piston_active = False
         self.barrera_active = False
@@ -151,11 +151,11 @@ class LogoClientMock:
                 self.sim_time_in_cycle += 0.1
                 # Simular curva de fuerza que sube
                 # Sube por encima de la fuerza mínima para dar un ciclo OK
-                target_peak = (self.fuerza_minima - OFFSET) + 75
+                target_peak = (self.fuerza_minima - OFFSET) + 15
                 # Curva logarítmica de subida con ruido
-                fuerza_calc = target_peak * (1.0 - math.exp(-self.sim_time_in_cycle * 2.0)) + random.uniform(-6, 6)
+                fuerza_calc = target_peak * (1.0 - math.exp(-self.sim_time_in_cycle * 2.0)) + random.uniform(-2, 2)
                 if self.sim_time_in_cycle > 3.0: # Simular que se estabiliza
-                    fuerza_calc = target_peak + random.uniform(-4, 4)
+                    fuerza_calc = target_peak + random.uniform(-1, 1)
             else:
                 self.sim_time_in_cycle = 0.0
                 fuerza_calc = random.uniform(0.0, 5.0) # Ruido mínimo cerca de 0
@@ -1111,7 +1111,7 @@ class LogoHMI:
         self.fig.patch.set_facecolor(COLOR_TARJETA)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_facecolor('#FAFAFA')
-        self.ax.set_ylim(0, 300) 
+        self.ax.set_ylim(0, 100) 
         self.ax.grid(True, linestyle="--", alpha=0.3, color="#ADB5BD")
         
         # Eliminar bordes para estética limpia
@@ -1255,7 +1255,7 @@ class LogoHMI:
     def read_cycle(self):
         try:
             raw_v0 = self.plc_client.db_read(MAPEO['b002_on']['db'], MAPEO['b002_on']['start'], MAPEO['b002_on']['size'])
-            v0 = max(0, get_int(raw_v0, 0) - OFFSET)
+            v0 = max(0, get_int(raw_v0, 0) - OFFSET) // 3
 
             self.plc_client.db_read(MAPEO['b002_off']['db'], MAPEO['b002_off']['start'], MAPEO['b002_off']['size'])
 
@@ -1336,13 +1336,17 @@ class LogoHMI:
             return
         try:
             valor_entero = int(valor_str)
-            valor_final = valor_entero + OFFSET if usar_offset else valor_entero
+            if vw_name == 'b002_on':
+                valor_final = (valor_entero * 3) + OFFSET
+            else:
+                valor_final = valor_entero + OFFSET if usar_offset else valor_entero
+                
             buffer = bytearray(2)
             set_int(buffer, 0, valor_final)
             self.plc_client.db_write(MAPEO[vw_name]['db'], MAPEO[vw_name]['start'], buffer)
             
             if vw_name == 'b002_on':
-                valor_v2 = valor_entero - 10
+                valor_v2 = (valor_entero * 3) - 10
                 valor_final_v2 = valor_v2 + OFFSET 
                 buffer_v2 = bytearray(2)
                 set_int(buffer_v2, 0, valor_final_v2)
@@ -1377,8 +1381,8 @@ class LogoHMI:
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6}")
 
-        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 30 kg o comando de pistón activo) ---
-        proceso_activo = (v6 > 30) or p_act
+        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 10 kg o comando de pistón activo) ---
+        proceso_activo = (v6 > 10) or p_act
         
         if proceso_activo:
             if self.cycle_start_time is None:
@@ -1480,8 +1484,8 @@ class LogoHMI:
         max_limit = max(max(self.grafica_datos), v0)
         if max_limit > self.ax.get_ylim()[1]:
             self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
-        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 300:
-            self.ax.set_ylim(0, max(300, max_limit + 15))
+        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
+            self.ax.set_ylim(0, max(100, max_limit + 15))
             
         self.canvas.draw()
 
