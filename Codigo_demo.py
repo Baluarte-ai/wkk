@@ -103,8 +103,8 @@ class LogoClientMock:
     def __init__(self):
         self.connected = False
         # Valores simulados de registros en el PLC
-        self.fuerza_minima = (60 * 3) + OFFSET  # Fuerza Mínima por defecto (60 kg, o 180 raw)
-        self.fuerza_minima_off = (56 * 3) + OFFSET  # VW2
+        self.fuerza_minima = int(round(60 * 3.5)) + OFFSET  # Fuerza Mínima por defecto (60 kg, o 210 raw)
+        self.fuerza_minima_off = int(round(56 * 3.5)) + OFFSET  # VW2
         self.retardo_centesimas = 250          # 2.50 segundos
         self.piston_active = False
         self.barrera_active = False
@@ -151,7 +151,7 @@ class LogoClientMock:
                 self.sim_time_in_cycle += 0.1
                 # Simular curva de fuerza que sube
                 # Sube por encima de la fuerza mínima para dar un ciclo OK
-                target_peak = (self.fuerza_minima - OFFSET) + 15
+                target_peak = (self.fuerza_minima - OFFSET) + 18
                 # Curva logarítmica de subida con ruido
                 fuerza_calc = target_peak * (1.0 - math.exp(-self.sim_time_in_cycle * 2.0)) + random.uniform(-2, 2)
                 if self.sim_time_in_cycle > 3.0: # Simular que se estabiliza
@@ -1255,7 +1255,7 @@ class LogoHMI:
     def read_cycle(self):
         try:
             raw_v0 = self.plc_client.db_read(MAPEO['b002_on']['db'], MAPEO['b002_on']['start'], MAPEO['b002_on']['size'])
-            v0 = max(0, get_int(raw_v0, 0) - OFFSET) // 3
+            v0 = int(round(max(0, get_int(raw_v0, 0) - OFFSET) / 3.5))
 
             self.plc_client.db_read(MAPEO['b002_off']['db'], MAPEO['b002_off']['start'], MAPEO['b002_off']['size'])
 
@@ -1263,7 +1263,7 @@ class LogoHMI:
             v4_segundos = get_int(raw_v4, 0) / 100.0
 
             raw_v6 = self.plc_client.db_read(MAPEO['b001_ax']['db'], MAPEO['b001_ax']['start'], MAPEO['b001_ax']['size'])
-            v6 = max(0, get_int(raw_v6, 0) - OFFSET)
+            v6 = int(round(max(0, get_int(raw_v6, 0) - OFFSET) / 3.5))
 
             raw_piston = self.plc_client.db_read(MAPEO['piston']['db'], MAPEO['piston']['start'], MAPEO['piston']['size'])
             p_act = get_bool(raw_piston, 0, MAPEO['piston']['bit'])
@@ -1337,7 +1337,7 @@ class LogoHMI:
         try:
             valor_entero = int(valor_str)
             if vw_name == 'b002_on':
-                valor_final = (valor_entero * 3) + OFFSET
+                valor_final = int(round(valor_entero * 3.5)) + OFFSET
             else:
                 valor_final = valor_entero + OFFSET if usar_offset else valor_entero
                 
@@ -1346,7 +1346,7 @@ class LogoHMI:
             self.plc_client.db_write(MAPEO[vw_name]['db'], MAPEO[vw_name]['start'], buffer)
             
             if vw_name == 'b002_on':
-                valor_v2 = (valor_entero * 3) - 10
+                valor_v2 = int(round(valor_entero * 3.5)) - 10
                 valor_final_v2 = valor_v2 + OFFSET 
                 buffer_v2 = bytearray(2)
                 set_int(buffer_v2, 0, valor_final_v2)
