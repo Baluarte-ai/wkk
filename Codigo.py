@@ -119,6 +119,7 @@ class LogoHMI:
         self.last_piece_force = 0
         self.piston_last_state = False
         self.max_force_in_cycle = 0
+        self.cycle_forces_list = []
 
         # Inicializar base de datos
         self.inicializar_db()
@@ -638,7 +639,7 @@ class LogoHMI:
         self.lbl_last_piece_admin = tk.Label(card_calidad_admin, text="ÚLTIMA PIEZA: --", font=("Helvetica", 14, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", pady=8)
         self.lbl_last_piece_admin.pack(fill="x", pady=(0, 6))
 
-        self.lbl_last_force_admin = tk.Label(card_calidad_admin, text="Fuerza Máxima: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
+        self.lbl_last_force_admin = tk.Label(card_calidad_admin, text="Fuerza Promedio: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
         # self.lbl_last_force_admin.pack(anchor="w", pady=2)
 
         frame_counters_admin = tk.Frame(card_calidad_admin, bg=COLOR_TARJETA)
@@ -666,7 +667,7 @@ class LogoHMI:
         self.lbl_last_piece = tk.Label(card_calidad_oper, text="ÚLTIMA PIEZA: --", font=("Helvetica", 14, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", pady=8)
         self.lbl_last_piece.pack(fill="x", pady=(0, 6))
 
-        self.lbl_last_force = tk.Label(card_calidad_oper, text="Fuerza Máxima: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
+        self.lbl_last_force = tk.Label(card_calidad_oper, text="Fuerza Promedio: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
         # self.lbl_last_force.pack(anchor="w", pady=2)
 
         frame_counters = tk.Frame(card_calidad_oper, bg=COLOR_TARJETA)
@@ -1229,16 +1230,21 @@ class LogoHMI:
         if proceso_activo:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
-                self.max_force_in_cycle = v6
+                self.cycle_forces_list = [v6]
             else:
-                self.max_force_in_cycle = max(self.max_force_in_cycle, v6)
+                self.cycle_forces_list.append(v6)
         else:
             if self.cycle_start_time is not None:
                 # El ciclo acaba de terminar!
-                resultado = "OK" if self.max_force_in_cycle >= v0 else "NOK"
+                if self.cycle_forces_list:
+                    average_force = sum(self.cycle_forces_list) // len(self.cycle_forces_list)
+                else:
+                    average_force = v6
+                
+                resultado = "OK" if average_force >= v0 else "NOK"
                 
                 # Registrar en base de datos
-                self.registrar_ciclo_db(self.max_force_in_cycle, resultado, v0)
+                self.registrar_ciclo_db(average_force, resultado, v0)
                 
                 # Actualizar contadores
                 if resultado == "OK":
@@ -1247,19 +1253,19 @@ class LogoHMI:
                     self.total_nok_count += 1
                     
                 self.last_piece_result = resultado
-                self.last_piece_force = self.max_force_in_cycle
+                self.last_piece_force = average_force
                 
                 # Refrescar labels del operador
                 if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
                     self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
-                    self.lbl_last_force.config(text=f"Fuerza Máxima: {self.max_force_in_cycle} kg")
+                    self.lbl_last_force.config(text=f"Fuerza Promedio: {average_force} kg")
                     self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
                     self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
                 
                 # Refrescar labels del administrador
                 if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
                     self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
-                    self.lbl_last_force_admin.config(text=f"Fuerza Máxima: {self.max_force_in_cycle} kg")
+                    self.lbl_last_force_admin.config(text=f"Fuerza Promedio: {average_force} kg")
                     self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
                     self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
                 
@@ -1592,7 +1598,7 @@ class LogoHMI:
 
             # Encabezados
             headers = [
-                "ID", "Fecha", "Hora", "Fuerza Máxima (VW6)", 
+                "ID", "Fecha", "Hora", "Fuerza Promedio (VW6)", 
                 "Resultado (OK/NOK)", "Límite Mínimo (VW0)", "Usuario"
             ]
 
