@@ -26,6 +26,11 @@ try:
 except ImportError:
     PIL_DISPONIBLE = False
 
+# --- RUTAS DE ARCHIVOS ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(SCRIPT_DIR, "assets")
+DB_PATH = os.path.join(SCRIPT_DIR, "registros_prensa.db")
+
 # --- CONFIGURACIÓN DE RED Y PLC ---
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "config_red.json")
 
@@ -73,10 +78,6 @@ COLOR_TEXTO_SEC = "#64748B"  # Slate-500
 COLOR_OK = "#10B981"         # Emerald-500 (Verde)
 COLOR_NOK = "#EF4444"        # Red-500 (Rojo)
 
-# --- RUTAS DE ARCHIVOS ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ASSETS_DIR = os.path.join(SCRIPT_DIR, "assets")
-DB_PATH = os.path.join(SCRIPT_DIR, "registros_prensa.db")
 
 class LogoHMI:
     def __init__(self, root):
