@@ -26,11 +26,26 @@ try:
 except ImportError:
     PIL_DISPONIBLE = False
 
-# --- CONFIGURACIÓN DEL PLC LOGO! ---
-PLC_IP = '192.168.0.3 (SIMULADO)'  
-PLC_RACK = 0
-PLC_SLOT = 1
-OFFSET = 1960 
+# --- CONFIGURACIÓN DE RED Y PLC ---
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "config_red.json")
+
+def cargar_config_red():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error al cargar config de red: {e}")
+    return {"ip": "192.168.0.3 (SIMULADO)", "rack": 0, "slot": 1}
+
+def guardar_config_red(ip, rack, slot):
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump({"ip": ip, "rack": int(rack), "slot": int(slot)}, f)
+    except Exception as e:
+        print(f"Error al guardar config de red: {e}")
+
+OFFSET = 1960 	
 
 # --- MAPEO COMPLETO DE MEMORIA ---
 MAPEO = {
@@ -193,6 +208,11 @@ class LogoHMI:
         self.root.bind("<Escape>", lambda e: self.toggle_fullscreen())
 
         # Instanciar el Cliente de PLC Simulado
+        config_red = cargar_config_red()
+        self.plc_ip = config_red["ip"]
+        self.plc_rack = config_red["rack"]
+        self.plc_slot = config_red["slot"]
+
         self.plc_client = LogoClientMock()
         self.is_connected = False
         self.running_loop = True  
@@ -349,6 +369,12 @@ class LogoHMI:
             self.btn_write_v0.config(state="disabled")
             self.btn_write_v4.config(state="disabled")
             
+            # Deshabilitar red
+            self.entry_ip.config(state="disabled")
+            self.entry_rack.config(state="disabled")
+            self.entry_slot.config(state="disabled")
+            self.btn_save_red.config(state="disabled")
+            
             # Ocultar pestañas del notebook
             try: self.notebook.hide(self.tab_parametros)
             except Exception: pass
@@ -369,6 +395,12 @@ class LogoHMI:
             self.entry_v4.config(state="normal")
             self.btn_write_v0.config(state="normal")
             self.btn_write_v4.config(state="normal")
+            
+            # Habilitar red
+            self.entry_ip.config(state="normal")
+            self.entry_rack.config(state="normal")
+            self.entry_slot.config(state="normal")
+            self.btn_save_red.config(state="normal")
             
             # Mostrar pestañas
             self.notebook.add(self.tab_parametros, text="Parámetros")
@@ -595,8 +627,12 @@ class LogoHMI:
         content = tk.Frame(self.dashboard, bg=COLOR_FONDO)
         content.pack(fill="both", expand=True, padx=12, pady=10)
 
+        # Obtener dimensiones de pantalla para escalar el layout cómodamente
+        screen_w = self.root.winfo_screenwidth()
+        panel_w = 750 if screen_w >= 1800 else 480
+
         # Panel Izquierdo (Pestañas / Notebook)
-        left_panel = tk.Frame(content, bg=COLOR_FONDO, width=480)
+        left_panel = tk.Frame(content, bg=COLOR_FONDO, width=panel_w)
         left_panel.pack(side="left", fill="y", padx=(0, 8))
         left_panel.pack_propagate(False)
 
@@ -792,6 +828,41 @@ class LogoHMI:
         self.btn_write_v4.pack(side="left", ipady=3)
         self.btn_write_v4.bind("<Enter>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_OSCURO))
         self.btn_write_v4.bind("<Leave>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_WKK))
+
+        # Card 2: Configuración de Red (Solo Admin)
+        card_red = self.crear_tarjeta(self.tab_parametros)
+        card_red.pack(fill="x", pady=(10, 0))
+
+        tk.Label(card_red, text="CONFIGURACIÓN DE RED Y PLC", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA).pack(anchor="w", pady=(0, 12))
+
+        # IP del PLC
+        frame_ip = tk.Frame(card_red, bg=COLOR_TARJETA)
+        frame_ip.pack(fill="x", pady=5)
+        tk.Label(frame_ip, text="IP del PLC:", font=("Helvetica", 10), fg=COLOR_TEXTO, bg=COLOR_TARJETA, width=15, anchor="w").pack(side="left")
+        self.entry_ip = tk.Entry(frame_ip, font=("Helvetica", 10), width=18, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
+        self.entry_ip.pack(side="left", padx=5)
+        self.entry_ip.insert(0, self.plc_ip)
+
+        # Rack / Slot
+        frame_rack_slot = tk.Frame(card_red, bg=COLOR_TARJETA)
+        frame_rack_slot.pack(fill="x", pady=5)
+        
+        tk.Label(frame_rack_slot, text="Rack:", font=("Helvetica", 10), fg=COLOR_TEXTO, bg=COLOR_TARJETA, width=6, anchor="w").pack(side="left")
+        self.entry_rack = tk.Entry(frame_rack_slot, font=("Helvetica", 10), width=4, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
+        self.entry_rack.pack(side="left", padx=5)
+        self.entry_rack.insert(0, str(self.plc_rack))
+
+        tk.Label(frame_rack_slot, text="Slot:", font=("Helvetica", 10), fg=COLOR_TEXTO, bg=COLOR_TARJETA, width=6, anchor="w").pack(side="left", padx=(15, 0))
+        self.entry_slot = tk.Entry(frame_rack_slot, font=("Helvetica", 10), width=4, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
+        self.entry_slot.pack(side="left", padx=5)
+        self.entry_slot.insert(0, str(self.plc_slot))
+
+        # Botón Guardar Red
+        frame_btn_red = tk.Frame(card_red, bg=COLOR_TARJETA)
+        frame_btn_red.pack(fill="x", pady=(10, 0))
+        
+        self.btn_save_red = tk.Button(frame_btn_red, text="Guardar y Reconectar", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=self.guardar_config_red_gui)
+        self.btn_save_red.pack(side="right")
 
         # --- PESTAÑA 3: REGISTROS ---
         card_filtros = self.crear_tarjeta(self.tab_registros)
@@ -1009,13 +1080,13 @@ class LogoHMI:
     def communication_loop(self):
         while self.running_loop:
             if not self.is_connected:
-                self.root.after(0, self.update_status_gui, f"Intentando conectar a {PLC_IP}...", "orange")
+                self.root.after(0, self.update_status_gui, f"Intentando conectar a {self.plc_ip}...", "orange")
                 # Simular tiempo de conexion
                 time.sleep(1.5)
-                self.plc_client.connect(PLC_IP, PLC_RACK, PLC_SLOT)
+                self.plc_client.connect(self.plc_ip, self.plc_rack, self.plc_slot)
                 if self.plc_client.get_connected():
                     self.is_connected = True
-                    self.root.after(0, self.update_status_gui, f"Conectado a {PLC_IP} - PLC Simulado OK", "green")
+                    self.root.after(0, self.update_status_gui, f"Conectado a {self.plc_ip} - PLC Simulado OK", "green")
             
             if self.is_connected:
                 self.read_cycle()
@@ -1050,6 +1121,36 @@ class LogoHMI:
             print(f"Error de red detectado: {e}")
             self.is_connected = False
             self.plc_client.disconnect()
+
+    def guardar_config_red_gui(self):
+        ip = self.entry_ip.get().strip()
+        rack_str = self.entry_rack.get().strip()
+        slot_str = self.entry_slot.get().strip()
+
+        if not ip:
+            messagebox.showerror("Error", "La dirección IP no puede estar vacía.")
+            return
+
+        try:
+            rack = int(rack_str)
+            slot = int(slot_str)
+        except ValueError:
+            messagebox.showerror("Error", "Rack y Slot deben ser números enteros.")
+            return
+
+        guardar_config_red(ip, rack, slot)
+
+        self.plc_ip = ip
+        self.plc_rack = rack
+        self.plc_slot = slot
+
+        self.is_connected = False
+        try:
+            self.plc_client.disconnect()
+        except Exception:
+            pass
+
+        messagebox.showinfo("Configuración de Red", f"Configuración guardada.\nIntentando conectar a {ip}...")
 
     def update_status_gui(self, texto, color):
         self.status_bar.config(text=texto, foreground=color)
