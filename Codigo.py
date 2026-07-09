@@ -976,7 +976,7 @@ class LogoHMI:
         tab_text = self.notebook.tab(tab_id, "text")
         if tab_text == "Registros":
             self.refrescar_tabla_gui()
-        elif tab_text == "Usuarios" or (hasattr(self, 'tab_usuarios') and tab_id == self.notebook.tabs()[3]):
+        elif tab_text == "Usuarios":
             self.refrescar_usuarios_gui()
 
     def abrir_teclado_sistema(self, event=None):
