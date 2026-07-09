@@ -103,8 +103,8 @@ class LogoClientMock:
     def __init__(self):
         self.connected = False
         # Valores simulados de registros en el PLC
-        self.fuerza_minima = 280 + OFFSET      # Fuerza Mínima por defecto (280 kg)
-        self.fuerza_minima_off = 270 + OFFSET  # VW2
+        self.fuerza_minima = (93 * 3) + OFFSET  # 93 * 3 = 279 kg (~280 kg raw)
+        self.fuerza_minima_off = (90 * 3) + OFFSET
         self.retardo_centesimas = 250          # 2.50 segundos
         self.piston_active = False
         self.barrera_active = False
@@ -761,7 +761,7 @@ class LogoHMI:
         self.lbl_last_piece_admin.pack(fill="x", pady=(0, 6))
 
         self.lbl_last_force_admin = tk.Label(card_calidad_admin, text="Fuerza Máxima: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
-        self.lbl_last_force_admin.pack(anchor="w", pady=2)
+        # self.lbl_last_force_admin.pack(anchor="w", pady=2)
 
         frame_counters_admin = tk.Frame(card_calidad_admin, bg=COLOR_TARJETA)
         frame_counters_admin.pack(fill="x", pady=4)
@@ -789,7 +789,7 @@ class LogoHMI:
         self.lbl_last_piece.pack(fill="x", pady=(0, 6))
 
         self.lbl_last_force = tk.Label(card_calidad_oper, text="Fuerza Máxima: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
-        self.lbl_last_force.pack(anchor="w", pady=2)
+        # self.lbl_last_force.pack(anchor="w", pady=2)
 
         frame_counters = tk.Frame(card_calidad_oper, bg=COLOR_TARJETA)
         frame_counters.pack(fill="x", pady=4)
@@ -1254,7 +1254,7 @@ class LogoHMI:
     def read_cycle(self):
         try:
             raw_v0 = self.plc_client.db_read(MAPEO['b002_on']['db'], MAPEO['b002_on']['start'], MAPEO['b002_on']['size'])
-            v0 = max(0, get_int(raw_v0, 0) - OFFSET)
+            v0 = max(0, get_int(raw_v0, 0) - OFFSET) // 3
 
             self.plc_client.db_read(MAPEO['b002_off']['db'], MAPEO['b002_off']['start'], MAPEO['b002_off']['size'])
 
@@ -1262,7 +1262,7 @@ class LogoHMI:
             v4_segundos = get_int(raw_v4, 0) / 100.0
 
             raw_v6 = self.plc_client.db_read(MAPEO['b001_ax']['db'], MAPEO['b001_ax']['start'], MAPEO['b001_ax']['size'])
-            v6 = max(0, get_int(raw_v6, 0) - OFFSET)
+            v6 = max(0, get_int(raw_v6, 0) - OFFSET) // 3
 
             raw_piston = self.plc_client.db_read(MAPEO['piston']['db'], MAPEO['piston']['start'], MAPEO['piston']['size'])
             p_act = get_bool(raw_piston, 0, MAPEO['piston']['bit'])
@@ -1335,13 +1335,17 @@ class LogoHMI:
             return
         try:
             valor_entero = int(valor_str)
-            valor_final = valor_entero + OFFSET if usar_offset else valor_entero
+            if vw_name == 'b002_on':
+                valor_final = (valor_entero * 3) + OFFSET
+            else:
+                valor_final = valor_entero + OFFSET if usar_offset else valor_entero
+                
             buffer = bytearray(2)
             set_int(buffer, 0, valor_final)
             self.plc_client.db_write(MAPEO[vw_name]['db'], MAPEO[vw_name]['start'], buffer)
             
             if vw_name == 'b002_on':
-                valor_v2 = valor_entero - 10
+                valor_v2 = (valor_entero * 3) - 10
                 valor_final_v2 = valor_v2 + OFFSET 
                 buffer_v2 = bytearray(2)
                 set_int(buffer_v2, 0, valor_final_v2)
@@ -1376,8 +1380,8 @@ class LogoHMI:
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6}")
 
-        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 30 kg o comando de pistón activo) ---
-        proceso_activo = (v6 > 30) or p_act
+        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 10 kg o comando de pistón activo) ---
+        proceso_activo = (v6 > 10) or p_act
         
         if proceso_activo:
             if self.cycle_start_time is None:
