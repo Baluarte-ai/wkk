@@ -482,6 +482,8 @@ class LogoHMI:
 
         entry_user.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         entry_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
+        entry_user.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        entry_pass.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
 
         def actualizar_estado_pass(perf):
             if perf == "Operador":
@@ -1128,6 +1130,16 @@ class LogoHMI:
         self.entry_new_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
 
+        self.entry_v0.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_v4.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_ip.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_rack.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_slot.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_fecha_filtro.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_new_user.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_new_pass.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+        self.entry_edit_pass.bind("<FocusOut>", lambda e: self.restaurar_pantalla_completa())
+
     def on_tab_changed(self, event):
         tab_id = self.notebook.select()
         if not tab_id:
@@ -1139,6 +1151,13 @@ class LogoHMI:
             self.refrescar_usuarios_gui()
 
     def abrir_teclado_sistema(self, event=None):
+        # Desactivar pantalla completa temporalmente para que la ventana del teclado se dibuje encima
+        try:
+            self.root.attributes('-fullscreen', False)
+            self.root.update_idletasks()
+        except Exception:
+            pass
+
         # Intentar mostrar el teclado virtual predeterminado de Raspberry Pi OS (Squeekboard) vía D-Bus
         try:
             subprocess.Popen([
@@ -1161,6 +1180,19 @@ class LogoHMI:
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
+
+    def restaurar_pantalla_completa(self, event=None):
+        # Esperar un breve instante antes de verificar el foco y restaurar pantalla completa
+        self.root.after(300, self._set_fullscreen_safe)
+
+    def _set_fullscreen_safe(self):
+        focus_widget = self.root.focus_get()
+        # Si el widget con foco no es un campo de entrada, restauramos la pantalla completa
+        if not isinstance(focus_widget, tk.Entry):
+            try:
+                self.root.attributes('-fullscreen', True)
+            except Exception:
+                pass
 
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
