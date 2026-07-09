@@ -1453,6 +1453,111 @@ class LogoHMI:
         except Exception as e:
             messagebox.showerror("Error", f"Fallo al exportar:\n{e}")
 
+    # --- MÉTODOS DE GESTIÓN DE USUARIOS ---
+    def refrescar_usuarios_gui(self):
+        for item in self.tree_usuarios.get_children():
+            self.tree_usuarios.delete(item)
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT username, role FROM usuarios ORDER BY role ASC, username ASC")
+            for row in cursor.fetchall():
+                self.tree_usuarios.insert("", "end", values=row)
+            conn.close()
+        except Exception as e:
+            print(f"Error al refrescar lista de usuarios: {e}")
+
+    def on_usuario_select(self, event):
+        selected = self.tree_usuarios.selection()
+        if not selected:
+            self.lbl_selected_user_name.config(text="Selecciona un usuario de la lista", fg=COLOR_TEXTO_SEC)
+            return
+        item = self.tree_usuarios.item(selected[0])
+        username, role = item["values"]
+        self.lbl_selected_user_name.config(text=f"Usuario: {username} ({role})", fg=COLOR_TEXTO)
+
+    def crear_usuario_gui(self):
+        username = self.entry_new_user.get().strip()
+        password = self.entry_new_pass.get()
+        role = self.combo_new_role.get()
+        
+        if not username:
+            messagebox.showerror("Error", "El nombre de usuario es requerido.")
+            return
+            
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO usuarios (username, password, role) VALUES (?, ?, ?)", (username, password, role))
+            conn.commit()
+            conn.close()
+            
+            messagebox.showinfo("Éxito", f"Usuario '{username}' creado exitosamente.")
+            self.entry_new_user.delete(0, tk.END)
+            self.entry_new_pass.delete(0, tk.END)
+            self.refrescar_usuarios_gui()
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", f"El usuario '{username}' ya existe.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al crear usuario:\n{e}")
+
+    def guardar_contrasena_gui(self):
+        selected = self.tree_usuarios.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Por favor selecciona un usuario de la lista.")
+            return
+            
+        item = self.tree_usuarios.item(selected[0])
+        username = item["values"][0]
+        new_pass = self.entry_edit_pass.get()
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE usuarios SET password = ? WHERE username = ?", (new_pass, username))
+            conn.commit()
+            conn.close()
+            
+            messagebox.showinfo("Éxito", f"Contraseña actualizada para el usuario '{username}'.")
+            self.entry_edit_pass.delete(0, tk.END)
+            self.refrescar_usuarios_gui()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al guardar contraseña:\n{e}")
+
+    def eliminar_usuario_gui(self):
+        selected = self.tree_usuarios.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Por favor selecciona un usuario de la lista.")
+            return
+            
+        item = self.tree_usuarios.item(selected[0])
+        username, role = item["values"]
+        
+        if username == self.perfil_actual:
+            messagebox.showerror("Error", "No puedes eliminar al usuario activo con el que iniciaste sesión.")
+            return
+            
+        if username == "admin":
+            messagebox.showerror("Error", "No se puede eliminar el usuario administrador maestro 'admin'.")
+            return
+            
+        res = messagebox.askyesno("Confirmar", f"¿Estás seguro de que deseas eliminar al usuario '{username}'?")
+        if not res:
+            return
+            
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM usuarios WHERE username = ?", (username,))
+            conn.commit()
+            conn.close()
+            
+            messagebox.showinfo("Éxito", f"Usuario '{username}' eliminado.")
+            self.lbl_selected_user_name.config(text="Selecciona un usuario de la lista", fg=COLOR_TEXTO_SEC)
+            self.refrescar_usuarios_gui()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al eliminar usuario:\n{e}")
+
     # --- CIERRE DE APLICACIÓN ---
     def on_closing(self):
         self.running_loop = False  
