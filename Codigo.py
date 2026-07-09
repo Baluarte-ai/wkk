@@ -971,13 +971,29 @@ class LogoHMI:
         self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
 
     def abrir_teclado_sistema(self, event=None):
-        # Intentar ejecutar los teclados virtuales en pantalla nativos de Raspberry Pi OS
-        for kb in ["onboard", "matchbox-keyboard", "florence", "kvkbd"]:
-            try:
-                subprocess.Popen([kb])
-                break
-            except FileNotFoundError:
-                continue
+        # 1. Intentar iniciar onboard en segundo plano
+        try:
+            subprocess.Popen(["onboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        # 2. Enviar señal D-Bus para forzar la visualización de Onboard
+        try:
+            subprocess.Popen([
+                "dbus-send",
+                "--type=method_call",
+                "--dest=org.onboard.Onboard",
+                "/org/onboard/Onboard/Keyboard",
+                "org.onboard.Onboard.Keyboard.Show"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Error D-Bus Onboard: {e}")
+
+        # 3. Intentar con matchbox-keyboard como fallback alternativo
+        try:
+            subprocess.Popen(["matchbox-keyboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
 
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
