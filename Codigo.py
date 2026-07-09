@@ -66,7 +66,7 @@ DB_PATH = os.path.join(SCRIPT_DIR, "registros_prensa.db")
 class LogoHMI:
     def __init__(self, root):
         self.root = root
-        self.root.title("WKK - HMI LOGO! Sistema de Control y Monitoreo SCADA")
+        self.root.title("WKK - HMI Sistema de Control y Monitoreo SCADA")
         
         # Iniciar en pantalla completa (apropiado para Raspberry Pi)
         self.root.attributes('-fullscreen', True)
@@ -454,7 +454,7 @@ class LogoHMI:
         # Separador vertical
         tk.Frame(header, bg=COLOR_VERDE_WKK, width=2, height=45).pack(side="left", padx=(5, 15), pady=15)
 
-        tk.Label(header, text="HMI SCADA - Control de Prensa LOGO! PLC", font=("Helvetica", 18, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(side="left", pady=15)
+        tk.Label(header, text="HMI SCADA - Control de Prensa PLC", font=("Helvetica", 18, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(side="left", pady=15)
 
         # Botón Cerrar App (Extremo Derecho)
         btn_salir = tk.Button(header, text="✕", font=("Helvetica", 14, "bold"),
@@ -1346,7 +1346,7 @@ class LogoHMI:
             # Crear libro de trabajo openpyxl
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Historial de Prensa LOGO"
+            ws.title = "Historial de Prensa"
             ws.views.sheetView[0].showGridLines = True
 
             # Encabezados

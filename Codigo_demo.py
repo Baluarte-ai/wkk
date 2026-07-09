@@ -184,7 +184,7 @@ class LogoClientMock:
 class LogoHMI:
     def __init__(self, root):
         self.root = root
-        self.root.title("WKK - HMI LOGO! Sistema de Control y Monitoreo SCADA (DEMO WINDOWS)")
+        self.root.title("WKK - HMI Sistema de Control y Monitoreo SCADA (DEMO WINDOWS)")
         
         # En modo demo en Windows, abrimos en una ventana grande pero no forzosamente fullscreen,
         # aunque incluimos el botón y soporte fullscreen si el usuario lo desea.
@@ -541,7 +541,7 @@ class LogoHMI:
         # Separador vertical
         tk.Frame(header, bg=COLOR_VERDE_WKK, width=2, height=45).pack(side="left", padx=(5, 15), pady=15)
 
-        tk.Label(header, text="HMI SCADA - Control de Prensa LOGO! PLC (DEMO)", font=("Helvetica", 16, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(side="left", pady=15)
+        tk.Label(header, text="HMI SCADA - Control de Prensa PLC (DEMO)", font=("Helvetica", 16, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(side="left", pady=15)
 
         # Botón Cerrar App (Extremo Derecho)
         btn_salir = tk.Button(header, text="✕", font=("Helvetica", 14, "bold"),
@@ -1474,7 +1474,7 @@ class LogoHMI:
             # Crear libro de trabajo openpyxl
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Historial de Prensa LOGO"
+            ws.title = "Historial de Prensa"
             ws.views.sheetView[0].showGridLines = True
 
             # Encabezados
