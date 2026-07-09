@@ -258,7 +258,15 @@ class LogoHMI:
 
     def establecer_pantalla_completa(self):
         try:
-            self.root.overrideredirect(True)
+            # En Linux/X11, usar type toolbar elimina bordes y mantiene foco/entrada activa
+            self.root.attributes('-type', 'toolbar')
+        except Exception:
+            try:
+                self.root.overrideredirect(True)
+            except Exception:
+                pass
+        
+        try:
             screen_w = self.root.winfo_screenwidth()
             screen_h = self.root.winfo_screenheight()
             self.root.geometry(f"{screen_w}x{screen_h}+0+0")
