@@ -250,6 +250,9 @@ class LogoHMI:
         # Iniciar la simulación en segundo plano
         threading.Thread(target=self.communication_loop, daemon=True).start()
 
+        # Configurar Onboard
+        self.configurar_onboard_sistema()
+
         # Mostrar pantalla de Login al arrancar
         self.root.after(100, lambda: self.mostrar_login())
 
@@ -1096,6 +1099,16 @@ class LogoHMI:
         self.entry_new_user.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         self.entry_new_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
+
+    def configurar_onboard_sistema(self):
+        try:
+            subprocess.run(["gsettings", "set", "org.onboard.window", "window-decoration", "false"])
+            subprocess.run(["gsettings", "set", "org.onboard.window", "docking-enabled", "true"])
+            subprocess.run(["gsettings", "set", "org.onboard.window", "docking-edge", "bottom"])
+            subprocess.run(["gsettings", "set", "org.onboard", "theme", "/usr/share/onboard/themes/Sleek.theme"])
+            subprocess.run(["gsettings", "set", "org.onboard", "layout", "/usr/share/onboard/layouts/Phone.onboard"])
+        except Exception:
+            pass
 
     def abrir_teclado_sistema(self, event=None):
         # 1. Intentar iniciar onboard en segundo plano
