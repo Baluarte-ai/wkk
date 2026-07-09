@@ -1139,31 +1139,28 @@ class LogoHMI:
             self.refrescar_usuarios_gui()
 
     def abrir_teclado_sistema(self, event=None):
-        # 1. Intentar mostrar Onboard por D-Bus (por si ya está corriendo en segundo plano)
+        # Intentar mostrar el teclado virtual predeterminado de Raspberry Pi OS (Squeekboard) vía D-Bus
         try:
             subprocess.Popen([
-                "dbus-send",
-                "--type=method_call",
-                "--dest=org.onboard.Onboard",
-                "/org/onboard/Onboard/Keyboard",
-                "org.onboard.Onboard.Keyboard.Show"
+                "gdbus", "call",
+                "--session",
+                "--dest", "sm.puri.OSK0",
+                "--object-path", "/sm/puri/OSK0",
+                "--method", "sm.puri.OSK0.SetVisible",
+                "true"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
-        # 2. Si Onboard no está activo, intentar iniciar el ejecutable
         try:
-            subprocess.Popen(["onboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen([
+                "busctl", "call",
+                "--user", "sm.puri.OSK0",
+                "/sm/puri/OSK0",
+                "sm.puri.OSK0", "SetVisible", "b", "true"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
-
-        # 3. Intentar iniciar wvkbd (teclado nativo de Wayland) como fallback alternativo
-        for cmd in ["wvkbd-mobintl", "wvkbd", "wvkbd-deskintl"]:
-            try:
-                subprocess.Popen([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                break
-            except Exception:
-                continue
 
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
