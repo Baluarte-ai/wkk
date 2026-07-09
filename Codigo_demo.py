@@ -250,9 +250,6 @@ class LogoHMI:
         # Iniciar la simulación en segundo plano
         threading.Thread(target=self.communication_loop, daemon=True).start()
 
-        # Configurar Onboard
-        self.configurar_onboard_sistema()
-
         # Mostrar pantalla de Login al arrancar
         self.root.after(100, lambda: self.mostrar_login())
 
@@ -1100,40 +1097,21 @@ class LogoHMI:
         self.entry_new_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
 
-    def configurar_onboard_sistema(self):
-        try:
-            subprocess.run(["gsettings", "set", "org.onboard.window", "window-decoration", "false"])
-            subprocess.run(["gsettings", "set", "org.onboard.window", "docking-enabled", "true"])
-            subprocess.run(["gsettings", "set", "org.onboard.window", "docking-edge", "bottom"])
-            subprocess.run(["gsettings", "set", "org.onboard", "theme", "/usr/share/onboard/themes/Sleek.theme"])
-            subprocess.run(["gsettings", "set", "org.onboard", "layout", "/usr/share/onboard/layouts/Phone.onboard"])
-        except Exception:
-            pass
-
     def abrir_teclado_sistema(self, event=None):
-        # 1. Intentar iniciar onboard en segundo plano
+        # 1. Intentar cerrar instancias previas de wvkbd para evitar duplicaciones
         try:
-            subprocess.Popen(["onboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["killall", "wvkbd-mobintl"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["killall", "wvkbd"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
-        # 2. Enviar señal D-Bus para forzar la visualización de Onboard
-        try:
-            subprocess.Popen([
-                "dbus-send",
-                "--type=method_call",
-                "--dest=org.onboard.Onboard",
-                "/org/onboard/Onboard/Keyboard",
-                "org.onboard.Onboard.Keyboard.Show"
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            print(f"Error D-Bus Onboard: {e}")
-
-        # 3. Intentar con matchbox-keyboard como fallback alternativo
-        try:
-            subprocess.Popen(["matchbox-keyboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
+        # 2. Intentar ejecutar el teclado nativo de Wayland en Raspberry Pi (wvkbd)
+        for cmd in ["wvkbd-mobintl", "wvkbd", "wvkbd-deskintl"]:
+            try:
+                subprocess.Popen([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+            except Exception:
+                continue
 
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
