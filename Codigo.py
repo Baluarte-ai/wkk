@@ -952,7 +952,7 @@ class LogoHMI:
         self.fig.patch.set_facecolor(COLOR_TARJETA)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_facecolor('#FAFAFA')
-        self.ax.set_ylim(0, 100) 
+        self.ax.set_ylim(0, 300) 
         self.ax.grid(True, linestyle="--", alpha=0.3, color="#ADB5BD")
         
         # Eliminar bordes para estética limpia
@@ -1097,7 +1097,7 @@ class LogoHMI:
     def read_cycle(self):
         try:
             raw_v0 = self.plc_client.db_read(MAPEO['b002_on']['db'], MAPEO['b002_on']['start'], MAPEO['b002_on']['size'])
-            v0 = max(0, get_int(raw_v0, 0) - OFFSET) // 3
+            v0 = max(0, get_int(raw_v0, 0) - OFFSET)
 
             self.plc_client.db_read(MAPEO['b002_off']['db'], MAPEO['b002_off']['start'], MAPEO['b002_off']['size'])
 
@@ -1105,7 +1105,7 @@ class LogoHMI:
             v4_segundos = get_int(raw_v4, 0) / 100.0
 
             raw_v6 = self.plc_client.db_read(MAPEO['b001_ax']['db'], MAPEO['b001_ax']['start'], MAPEO['b001_ax']['size'])
-            v6 = max(0, get_int(raw_v6, 0) - OFFSET) // 3
+            v6 = max(0, get_int(raw_v6, 0) - OFFSET)
 
             raw_piston = self.plc_client.db_read(MAPEO['piston']['db'], MAPEO['piston']['start'], MAPEO['piston']['size'])
             p_act = get_bool(raw_piston, 0, MAPEO['piston']['bit'])
@@ -1179,17 +1179,14 @@ class LogoHMI:
             return
         try:
             valor_entero = int(valor_str)
-            if vw_name == 'b002_on':
-                valor_final = (valor_entero * 3) + OFFSET
-            else:
-                valor_final = valor_entero + OFFSET if usar_offset else valor_entero
+            valor_final = valor_entero + OFFSET if usar_offset else valor_entero
                 
             buffer = bytearray(2)
             set_int(buffer, 0, valor_final)
             self.plc_client.db_write(MAPEO[vw_name]['db'], MAPEO[vw_name]['start'], buffer)
             
             if vw_name == 'b002_on':
-                valor_v2 = (valor_entero * 3) - 10
+                valor_v2 = valor_entero - 10
                 valor_final_v2 = valor_v2 + OFFSET 
                 buffer_v2 = bytearray(2)
                 set_int(buffer_v2, 0, valor_final_v2)
@@ -1224,8 +1221,8 @@ class LogoHMI:
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6}")
 
-        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 10 kg o comando de pistón activo) ---
-        proceso_activo = (v6 > 10) or p_act
+        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 30 kg o comando de pistón activo) ---
+        proceso_activo = (v6 > 30) or p_act
         
         if proceso_activo:
             if self.cycle_start_time is None:
@@ -1327,8 +1324,8 @@ class LogoHMI:
         max_limit = max(max(self.grafica_datos), v0)
         if max_limit > self.ax.get_ylim()[1]:
             self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
-        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
-            self.ax.set_ylim(0, max(100, max_limit + 15))
+        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 300:
+            self.ax.set_ylim(0, max(300, max_limit + 15))
             
         self.canvas.draw()
 
