@@ -87,6 +87,9 @@ class LogoHMI:
         self.establecer_pantalla_completa()
         self.root.configure(bg=COLOR_FONDO)
         self.root.bind("<Escape>", lambda e: self.toggle_fullscreen())
+        
+        # Desenfocar entradas al hacer click en el fondo para ocultar el teclado
+        self.root.bind("<Button-1>", self.click_afuera)
 
         # Configuración de comunicación PLC
         config_red = cargar_config_red()
@@ -462,7 +465,10 @@ class LogoHMI:
                                activebackground=COLOR_VERDE_OSCURO, activeforeground="white", bd=0, width=22, pady=10, command=intentar_login)
         btn_entrar.pack(pady=5)
 
-        entry_pass.bind("<Return>", intentar_login)
+        entry_user.bind("<Return>", lambda e: [self.cerrar_teclado_sistema(), intentar_login()])
+        entry_pass.bind("<Return>", lambda e: [self.cerrar_teclado_sistema(), intentar_login()])
+        entry_user.bind("<FocusOut>", lambda e: self.cerrar_teclado_sistema())
+        entry_pass.bind("<FocusOut>", lambda e: self.cerrar_teclado_sistema())
 
     # --- CREACIÓN DE INTERFAZ GRÁFICA DE OPERACIÓN ---
     def create_widgets(self):
@@ -985,15 +991,11 @@ class LogoHMI:
         self.scrollbar.config(command=self.listbox_log.yview)
 
         # Vincular campos de entrada con el Teclado Virtual del Sistema (Raspberry Pi OS)
-        self.entry_v0.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_v4.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_ip.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_rack.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_slot.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_fecha_filtro.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_new_user.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_new_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
-        self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
+        for entry in [self.entry_v0, self.entry_v4, self.entry_ip, self.entry_rack, self.entry_slot, 
+                      self.entry_fecha_filtro, self.entry_new_user, self.entry_new_pass, self.entry_edit_pass]:
+            entry.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
+            entry.bind("<Return>", lambda e: self.cerrar_teclado_sistema())
+            entry.bind("<FocusOut>", lambda e: self.cerrar_teclado_sistema())
 
     def on_tab_changed(self, event):
         tab_id = self.notebook.select()
@@ -1028,6 +1030,36 @@ class LogoHMI:
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
+
+    def cerrar_teclado_sistema(self, event=None):
+        # Intentar ocultar el teclado virtual predeterminado de Raspberry Pi OS (Squeekboard) vía D-Bus
+        try:
+            subprocess.Popen([
+                "gdbus", "call",
+                "--session",
+                "--dest", "sm.puri.OSK0",
+                "--object-path", "/sm/puri/OSK0",
+                "--method", "sm.puri.OSK0.SetVisible",
+                "false"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        try:
+            subprocess.Popen([
+                "busctl", "call",
+                "--user", "sm.puri.OSK0",
+                "/sm/puri/OSK0",
+                "sm.puri.OSK0", "SetVisible", "b", "false"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+    def click_afuera(self, event):
+        # Si el click ocurre fuera de cualquier Entry, removemos el foco
+        widget = event.widget
+        if widget and not isinstance(widget, tk.Entry):
+            self.root.focus_set()
 
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
