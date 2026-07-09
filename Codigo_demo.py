@@ -253,6 +253,9 @@ class LogoHMI:
         # Mostrar pantalla de Login al arrancar
         self.root.after(100, lambda: self.mostrar_login())
 
+        # Vincular cambio de pestañas para refrescar tablas automáticamente
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+
     def toggle_fullscreen(self):
         is_fs = self.root.attributes('-fullscreen')
         self.root.attributes('-fullscreen', not is_fs)
@@ -260,16 +263,24 @@ class LogoHMI:
     # --- BASE DE DATOS SQLite ---
     def inicializar_db(self):
         try:
+            # Si el archivo de base de datos existe, verificar estructura
+            if os.path.exists(DB_PATH):
+                try:
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("PRAGMA table_info(registros)")
+                    cols = [c[1] for c in cursor.fetchall()]
+                    conn.close()
+                    
+                    if cols and "resultado" not in cols:
+                        # Estructura antigua detectada. Borrar archivo de base de datos para iniciar limpia.
+                        os.remove(DB_PATH)
+                        print("Base de datos antigua eliminada para actualizar estructura.")
+                except Exception as e:
+                    print(f"Error verificando estructura de DB: {e}")
+
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            
-            # Si la tabla vieja existe pero tiene otra estructura, la reiniciamos
-            cursor.execute("PRAGMA table_info(registros)")
-            cols = [c[1] for c in cursor.fetchall()]
-            if cols and "resultado" not in cols:
-                cursor.execute("DROP TABLE registros")
-                conn.commit()
-
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS registros (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -709,6 +720,26 @@ class LogoHMI:
         self.btn_apagar.bind("<Enter>", lambda e: self.btn_apagar.config(bg="#DC2626"))
         self.btn_apagar.bind("<Leave>", lambda e: self.btn_apagar.config(bg=COLOR_NOK))
 
+        # Card de Control de Calidad de la Pieza (Admin)
+        card_calidad_admin = self.crear_tarjeta(self.frame_monitoreo_admin)
+        card_calidad_admin.pack(fill="x", pady=(8, 0))
+        tk.Label(card_calidad_admin, text="CONTROL DE CALIDAD DE LA PIEZA", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA).pack(anchor="w", pady=(0, 6))
+        
+        self.lbl_last_piece_admin = tk.Label(card_calidad_admin, text="ÚLTIMA PIEZA: --", font=("Helvetica", 14, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", pady=8)
+        self.lbl_last_piece_admin.pack(fill="x", pady=(0, 6))
+
+        self.lbl_last_force_admin = tk.Label(card_calidad_admin, text="Fuerza Máxima: --", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA)
+        self.lbl_last_force_admin.pack(anchor="w", pady=2)
+
+        frame_counters_admin = tk.Frame(card_calidad_admin, bg=COLOR_TARJETA)
+        frame_counters_admin.pack(fill="x", pady=4)
+
+        self.lbl_counter_ok_admin = tk.Label(frame_counters_admin, text="OK: 0", font=("Helvetica", 12, "bold"), fg="white", bg=COLOR_OK, pady=6)
+        self.lbl_counter_ok_admin.pack(side="left", expand=True, fill="x", padx=(0, 4))
+
+        self.lbl_counter_nok_admin = tk.Label(frame_counters_admin, text="NOK: 0", font=("Helvetica", 12, "bold"), fg="white", bg=COLOR_NOK, pady=6)
+        self.lbl_counter_nok_admin.pack(side="left", expand=True, fill="x", padx=(4, 0))
+
         # --- VISTA OPERADOR ---
         # Card 1: Estado del Proceso
         card_proc_oper = self.crear_tarjeta(self.frame_monitoreo_operador)
@@ -1097,6 +1128,16 @@ class LogoHMI:
         self.entry_new_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
         self.entry_edit_pass.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
 
+    def on_tab_changed(self, event):
+        tab_id = self.notebook.select()
+        if not tab_id:
+            return
+        tab_text = self.notebook.tab(tab_id, "text")
+        if tab_text == "Registros":
+            self.refrescar_tabla_gui()
+        elif tab_text == "Usuarios" or (hasattr(self, 'tab_usuarios') and tab_id == self.notebook.tabs()[3]):
+            self.refrescar_usuarios_gui()
+
     def abrir_teclado_sistema(self, event=None):
         # 1. Intentar cerrar instancias previas de wvkbd para evitar duplicaciones
         try:
@@ -1302,6 +1343,13 @@ class LogoHMI:
                     self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
                     self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
                 
+                # Refrescar labels del administrador
+                if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
+                    self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                    self.lbl_last_force_admin.config(text=f"Fuerza Máxima: {self.max_force_in_cycle} kg")
+                    self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
+                    self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
+                
                 # Auto refrescar tabla de registros
                 self.refrescar_tabla_gui()
                 self.cycle_start_time = None
@@ -1336,7 +1384,7 @@ class LogoHMI:
 
             # 3. Barra de Progreso del Ciclo (usando los segundos del PLC en 'v4')
             v4_lim = max(0.1, v4)
-            if p_act and self.cycle_start_time is not None:
+            if proceso_activo and self.cycle_start_time is not None:
                 elapsed = time.time() - self.cycle_start_time
                 pct = min(elapsed / v4_lim, 1.0)
                 self.lbl_progress_status_oper.config(text=f"Progreso del Ciclo: {elapsed:.1f} s / {v4:.1f} s")
