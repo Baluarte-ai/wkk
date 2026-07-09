@@ -197,6 +197,143 @@ class LogoClientMock:
         return True
 
 
+class VirtualKeyboard(tk.Toplevel):
+    def __init__(self, parent, target_entry, mode="text"):
+        super().__init__(parent)
+        self.target_entry = target_entry
+        self.mode = mode
+        
+        self.title("Teclado HMI" if mode == "text" else "Teclado Numérico HMI")
+        self.configure(bg="#1E293B")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+        
+        w_width = 720 if mode == "text" else 320
+        w_height = 320 if mode == "text" else 420
+        
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        
+        pos_x = (screen_w - w_width) // 2
+        pos_y = (screen_h - w_height) // 2
+        self.geometry(f"{w_width}x{w_height}+{pos_x}+{pos_y}")
+        
+        self.current_val = tk.StringVar(value=target_entry.get())
+        
+        display_frame = tk.Frame(self, bg="#1E293B", pady=10)
+        display_frame.pack(fill="x", padx=15)
+        
+        self.display = tk.Entry(display_frame, textvariable=self.current_val, font=("Helvetica", 16, "bold"), 
+                               bg="#0F172A", fg="white", bd=0, justify="center", insertbackground="white")
+        self.display.pack(fill="x", ipady=10)
+        self.display.focus_set()
+        
+        self.keys_frame = tk.Frame(self, bg="#1E293B", padx=10, pady=10)
+        self.keys_frame.pack(expand=True, fill="both")
+        
+        if mode == "num":
+            self.build_numpad()
+        else:
+            self.build_qwerty()
+            
+    def button_click(self, char):
+        if char == "Borrar":
+            val = self.current_val.get()
+            self.current_val.set(val[:-1])
+        elif char == "Limpiar":
+            self.current_val.set("")
+        elif char == "Espacio":
+            self.current_val.set(self.current_val.get() + " ")
+        elif char == "Aceptar":
+            self.target_entry.delete(0, tk.END)
+            self.target_entry.insert(0, self.current_val.get())
+            self.target_entry.event_generate("<<Modified>>")
+            self.destroy()
+        elif char == "Cancelar":
+            self.destroy()
+        else:
+            self.current_val.set(self.current_val.get() + str(char))
+            
+    def build_numpad(self):
+        buttons = [
+            ['7', '8', '9'],
+            ['4', '5', '6'],
+            ['1', '2', '3'],
+            ['0', '.', '-'],
+            ['Borrar', 'Limpiar'],
+            ['Cancelar', 'Aceptar']
+        ]
+        
+        for i in range(3):
+            self.keys_frame.columnconfigure(i, weight=1)
+        for i in range(6):
+            self.keys_frame.rowconfigure(i, weight=1)
+            
+        for r_idx, row in enumerate(buttons):
+            for c_idx, btn_text in enumerate(row):
+                colspan = 1
+                if btn_text in ['Borrar', 'Limpiar', 'Cancelar', 'Aceptar']:
+                    colspan = 2 if len(row) == 2 else 1
+                
+                bg_color = "#334155"
+                fg_color = "white"
+                if btn_text == "Aceptar":
+                    bg_color = "#0E8A3E"
+                elif btn_text in ["Cancelar", "Limpiar"]:
+                    bg_color = "#64748B"
+                elif btn_text == "Borrar":
+                    bg_color = "#EF4444"
+                    
+                btn = tk.Button(self.keys_frame, text=btn_text, font=("Helvetica", 14, "bold"), 
+                                fg=fg_color, bg=bg_color, bd=0, activebackground=bg_color, activeforeground="white",
+                                command=lambda t=btn_text: self.button_click(t))
+                btn.grid(row=r_idx, column=c_idx, columnspan=colspan, padx=4, pady=4, sticky="nsew")
+
+    def build_qwerty(self):
+        rows = [
+            ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'],
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Borrar'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ', 'Limpiar'],
+            ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '.', '_', '@', 'Espacio'],
+            ['Cancelar', 'Aceptar']
+        ]
+        
+        for i in range(11):
+            self.keys_frame.columnconfigure(i, weight=1)
+        for i in range(5):
+            self.keys_frame.rowconfigure(i, weight=1)
+            
+        for r_idx, row in enumerate(rows):
+            for c_idx, btn_text in enumerate(row):
+                colspan = 1
+                col_pos = c_idx
+                
+                if btn_text == "Cancelar":
+                    colspan = 5
+                    col_pos = 0
+                elif btn_text == "Aceptar":
+                    colspan = 6
+                    col_pos = 5
+                elif btn_text in ['Borrar', 'Limpiar', 'Espacio']:
+                    colspan = 1
+                    col_pos = 10
+                    
+                bg_color = "#334155"
+                fg_color = "white"
+                if btn_text == "Aceptar":
+                    bg_color = "#0E8A3E"
+                elif btn_text in ["Cancelar", "Limpiar"]:
+                    bg_color = "#64748B"
+                elif btn_text == "Borrar":
+                    bg_color = "#EF4444"
+                    
+                btn = tk.Button(self.keys_frame, text=btn_text, font=("Helvetica", 11, "bold"),
+                                fg=fg_color, bg=bg_color, bd=0, activebackground=bg_color, activeforeground="white",
+                                command=lambda t=btn_text: self.button_click(t))
+                btn.grid(row=r_idx, column=col_pos, columnspan=colspan, padx=3, pady=3, sticky="nsew")
+
+
 class LogoHMI:
     def __init__(self, root):
         self.root = root
@@ -467,6 +604,9 @@ class LogoHMI:
         lbl_pass.pack(anchor="w", pady=(0, 4))
         entry_pass = tk.Entry(frame_admin_fields, show="*", font=("Helvetica", 12), justify="center", width=25, relief="flat", highlightbackground=COLOR_BORDE, highlightthickness=1)
         entry_pass.pack(pady=(0, 15))
+
+        entry_user.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, entry_user, "text"))
+        entry_pass.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, entry_pass, "text"))
 
         def actualizar_estado_pass(perf):
             if perf == "Operador":
@@ -799,7 +939,7 @@ class LogoHMI:
         tk.Label(card_p, text="AJUSTE DE PARÁMETROS PLC", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA).pack(anchor="w", pady=(0, 12))
 
         # Fuerza Mínima
-        tk.Label(card_p, text="Fuerza Mínima (VW0):", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(anchor="w", pady=(2, 2))
+        tk.Label(card_p, text="Fuerza Mínima:", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(anchor="w", pady=(2, 2))
         frame_v0 = tk.Frame(card_p, bg=COLOR_TARJETA)
         frame_v0.pack(fill="x", pady=(0, 10))
 
@@ -809,13 +949,13 @@ class LogoHMI:
         self.entry_v0 = tk.Entry(frame_v0, font=("Helvetica", 11), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
         self.entry_v0.pack(side="left", padx=10, ipady=3)
 
-        self.btn_write_v0 = tk.Button(frame_v0, text="Escribir", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_vw('b002_on', self.entry_v0.get(), usar_offset=True))
+        self.btn_write_v0 = tk.Button(frame_v0, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_vw('b002_on', self.entry_v0.get(), usar_offset=True))
         self.btn_write_v0.pack(side="left", padx=5)
         self.btn_write_v0.bind("<Enter>", lambda e: self.btn_write_v0.config(bg=COLOR_VERDE_OSCURO))
         self.btn_write_v0.bind("<Leave>", lambda e: self.btn_write_v0.config(bg=COLOR_VERDE_WKK))
 
         # Segundo
-        tk.Label(card_p, text="Segundo (VW4):", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(anchor="w", pady=(2, 2))
+        tk.Label(card_p, text="Tiempo de Retardo:", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO, bg=COLOR_TARJETA).pack(anchor="w", pady=(2, 2))
         frame_v4 = tk.Frame(card_p, bg=COLOR_TARJETA)
         frame_v4.pack(fill="x", pady=0)
 
@@ -825,7 +965,7 @@ class LogoHMI:
         self.entry_v4 = tk.Entry(frame_v4, font=("Helvetica", 11), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
         self.entry_v4.pack(side="left", padx=10, ipady=3)
 
-        self.btn_write_v4 = tk.Button(frame_v4, text="Escribir", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_retardo(self.entry_v4.get()))
+        self.btn_write_v4 = tk.Button(frame_v4, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_retardo(self.entry_v4.get()))
         self.btn_write_v4.pack(side="left", padx=5)
         self.btn_write_v4.bind("<Enter>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_OSCURO))
         self.btn_write_v4.bind("<Leave>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_WKK))
@@ -1082,6 +1222,17 @@ class LogoHMI:
         self.listbox_log.pack(side='left', fill='both', expand=True)
         self.scrollbar.config(command=self.listbox_log.yview)
 
+        # Vincular campos de entrada con el Teclado Virtual HMI
+        self.entry_v0.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_v0, "num"))
+        self.entry_v4.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_v4, "num"))
+        self.entry_ip.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_ip, "num"))
+        self.entry_rack.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_rack, "num"))
+        self.entry_slot.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_slot, "num"))
+        self.entry_fecha_filtro.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_fecha_filtro, "num"))
+        self.entry_new_user.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_new_user, "text"))
+        self.entry_new_pass.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_new_pass, "text"))
+        self.entry_edit_pass.bind("<Button-1>", lambda e: VirtualKeyboard(self.root, self.entry_edit_pass, "text"))
+
     # --- UI HELPERS ---
     def crear_tarjeta(self, parent, **kwargs):
         return tk.Frame(parent, bg=COLOR_TARJETA, highlightbackground=COLOR_BORDE, highlightthickness=1, padx=15, pady=10, **kwargs)
@@ -1238,8 +1389,10 @@ class LogoHMI:
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6}")
 
-        # --- DETECCIÓN DE CICLOS (Diferencia de estado del pistón) ---
-        if p_act:
+        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 30 kg o comando de pistón activo) ---
+        proceso_activo = (v6 > 30) or p_act
+        
+        if proceso_activo:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
                 self.max_force_in_cycle = v6
@@ -1273,7 +1426,7 @@ class LogoHMI:
                 self.refrescar_tabla_gui()
                 self.cycle_start_time = None
 
-        self.piston_last_state = p_act
+        self.piston_last_state = proceso_activo
 
         # Actualizar LEDs e Indicadores según el Perfil Activo
         if self.perfil_rol == "Administrador":
@@ -1282,13 +1435,13 @@ class LogoHMI:
                 borde = "#059669" if estado else "#DC2626"
                 canvas.itemconfig(led_id, fill=color, outline=borde)
 
-            cambiar_color_led(self.c_piston, self.led_piston, p_act)
+            cambiar_color_led(self.c_piston, self.led_piston, proceso_activo)
             cambiar_color_led(self.c_barrera, self.led_barrera, b_act)
             cambiar_color_led(self.c_emergencia, self.led_emergencia, e_act)
             cambiar_color_led(self.c_inicio, self.led_inicio, i_act)
         else: # Perfil: Operador
             # 1. Estado del Proceso (Pistón)
-            if p_act:
+            if proceso_activo:
                 self.lbl_piston_status_oper.config(text="PROCESO ACTIVO", bg=COLOR_OK, fg="white")
             else:
                 self.lbl_piston_status_oper.config(text="PROCESO INACTIVO", bg="#E2E8F0", fg=COLOR_TEXTO_SEC)
