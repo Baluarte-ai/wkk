@@ -1110,7 +1110,7 @@ class LogoHMI:
         self.fig.patch.set_facecolor(COLOR_TARJETA)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_facecolor('#FAFAFA')
-        self.ax.set_ylim(0, 160) 
+        self.ax.set_ylim(0, 100) 
         self.ax.grid(True, linestyle="--", alpha=0.3, color="#ADB5BD")
         
         # Eliminar bordes para estética limpia
@@ -1477,9 +1477,9 @@ class LogoHMI:
 
         max_limit = max(max(self.grafica_datos), v0)
         if max_limit > self.ax.get_ylim()[1]:
-            self.ax.set_ylim(0, max_limit + (max_limit * 0.2))
-        elif max_limit < self.ax.get_ylim()[1] * 0.4 and self.ax.get_ylim()[1] > 160:
-            self.ax.set_ylim(0, max(160, max_limit + 30))
+            self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
+        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
+            self.ax.set_ylim(0, max(100, max_limit + 15))
             
         self.canvas.draw()
 
