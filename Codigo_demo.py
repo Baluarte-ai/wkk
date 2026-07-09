@@ -591,7 +591,7 @@ class LogoHMI:
         self.lbl_usuario_status = tk.Label(frame_usuario, text="Perfil: Operador", font=("Helvetica", 11, "bold"), fg=COLOR_TEXTO_SEC, bg=COLOR_TARJETA)
         self.lbl_usuario_status.pack(side="left", padx=8)
 
-        btn_switch_user = tk.Button(frame_usuario, text="Cambiar Usuario", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=self.mostrar_login)
+        btn_switch_user = tk.Button(frame_usuario, text="Cambiar Usuario", font=("Helvetica", 11, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=self.mostrar_login)
         btn_switch_user.pack(side="left", padx=8)
 
         # Línea de acento verde
@@ -809,8 +809,8 @@ class LogoHMI:
         self.entry_v0 = tk.Entry(frame_v0, font=("Helvetica", 11), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
         self.entry_v0.pack(side="left", padx=10, ipady=3)
 
-        self.btn_write_v0 = tk.Button(frame_v0, text="Escribir", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, command=lambda: self.escribir_vw('b002_on', self.entry_v0.get(), usar_offset=True))
-        self.btn_write_v0.pack(side="left", ipady=3)
+        self.btn_write_v0 = tk.Button(frame_v0, text="Escribir", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_vw('b002_on', self.entry_v0.get(), usar_offset=True))
+        self.btn_write_v0.pack(side="left", padx=5)
         self.btn_write_v0.bind("<Enter>", lambda e: self.btn_write_v0.config(bg=COLOR_VERDE_OSCURO))
         self.btn_write_v0.bind("<Leave>", lambda e: self.btn_write_v0.config(bg=COLOR_VERDE_WKK))
 
@@ -825,8 +825,8 @@ class LogoHMI:
         self.entry_v4 = tk.Entry(frame_v4, font=("Helvetica", 11), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
         self.entry_v4.pack(side="left", padx=10, ipady=3)
 
-        self.btn_write_v4 = tk.Button(frame_v4, text="Escribir", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, command=lambda: self.escribir_retardo(self.entry_v4.get()))
-        self.btn_write_v4.pack(side="left", ipady=3)
+        self.btn_write_v4 = tk.Button(frame_v4, text="Escribir", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=lambda: self.escribir_retardo(self.entry_v4.get()))
+        self.btn_write_v4.pack(side="left", padx=5)
         self.btn_write_v4.bind("<Enter>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_OSCURO))
         self.btn_write_v4.bind("<Leave>", lambda e: self.btn_write_v4.config(bg=COLOR_VERDE_WKK))
 
@@ -862,8 +862,14 @@ class LogoHMI:
         frame_btn_red = tk.Frame(card_red, bg=COLOR_TARJETA)
         frame_btn_red.pack(fill="x", pady=(10, 0))
         
-        self.btn_save_red = tk.Button(frame_btn_red, text="Guardar y Reconectar", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=self.guardar_config_red_gui)
+        self.btn_save_red = tk.Button(frame_btn_red, text="Guardar y Reconectar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=15, pady=8, command=self.guardar_config_red_gui)
         self.btn_save_red.pack(side="right")
+
+        # Botón para regresar a monitoreo
+        frame_cerrar_p = tk.Frame(self.tab_parametros, bg=COLOR_FONDO)
+        frame_cerrar_p.pack(fill="x", pady=(15, 0))
+        btn_cerrar_p = tk.Button(frame_cerrar_p, text="✕ Cerrar Vista", font=("Helvetica", 11, "bold"), fg="white", bg="#64748B", bd=0, pady=10, padx=20, command=lambda: self.notebook.select(self.tab_monitoreo))
+        btn_cerrar_p.pack(side="right")
 
         # --- PESTAÑA 3: REGISTROS ---
         card_filtros = self.crear_tarjeta(self.tab_registros)
@@ -881,10 +887,10 @@ class LogoHMI:
         self.entry_fecha_filtro.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
         # Botón calendario modal
-        btn_cal = tk.Button(frame_grid, text="📅", font=("Helvetica", 8, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=6, pady=2, command=self.abrir_calendario_modal)
+        btn_cal = tk.Button(frame_grid, text="📅", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=8, pady=4, command=self.abrir_calendario_modal)
         btn_cal.grid(row=0, column=2, pady=2, padx=4)
 
-        btn_hoy = tk.Button(frame_grid, text="Hoy", font=("Helvetica", 8, "bold"), fg=COLOR_TEXTO_SEC, bg="#F1F3F5", bd=0, padx=6, pady=2, command=self.set_fecha_hoy)
+        btn_hoy = tk.Button(frame_grid, text="Hoy", font=("Helvetica", 9, "bold"), fg=COLOR_TEXTO_SEC, bg="#F1F3F5", bd=0, padx=8, pady=4, command=self.set_fecha_hoy)
         btn_hoy.grid(row=0, column=3, pady=2)
 
         # Rango horas
@@ -903,10 +909,10 @@ class LogoHMI:
         frame_filtros_btns = tk.Frame(card_filtros, bg=COLOR_TARJETA)
         frame_filtros_btns.pack(fill="x", pady=(5, 0))
 
-        btn_filtrar = tk.Button(frame_filtros_btns, text="🔍 Filtrar", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=5, command=self.aplicar_filtro_db)
+        btn_filtrar = tk.Button(frame_filtros_btns, text="🔍 Filtrar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=8, command=self.aplicar_filtro_db)
         btn_filtrar.pack(side="left", expand=True, fill="x", padx=(0, 4))
 
-        btn_limpiar = tk.Button(frame_filtros_btns, text="Limpiar", font=("Helvetica", 9, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", bd=0, pady=5, command=self.limpiar_filtro_db)
+        btn_limpiar = tk.Button(frame_filtros_btns, text="Limpiar", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", bd=0, pady=8, command=self.limpiar_filtro_db)
         btn_limpiar.pack(side="right", expand=True, fill="x", padx=(4, 0))
 
         # Card Tabla Registros
@@ -936,15 +942,21 @@ class LogoHMI:
         frame_acc = tk.Frame(self.tab_registros, bg=COLOR_FONDO)
         frame_acc.pack(fill="x", pady=(6, 0))
 
-        btn_export = tk.Button(frame_acc, text="📊 Exportar a Excel", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=8, command=self.exportar_a_excel)
+        btn_export = tk.Button(frame_acc, text="📊 Exportar a Excel", font=("Helvetica", 11, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=10, command=self.exportar_a_excel)
         btn_export.pack(side="left", expand=True, fill="x", padx=(0, 4))
         btn_export.bind("<Enter>", lambda e: btn_export.config(bg=COLOR_VERDE_OSCURO))
         btn_export.bind("<Leave>", lambda e: btn_export.config(bg=COLOR_VERDE_WKK))
 
-        self.btn_eliminar = tk.Button(frame_acc, text="🗑 Limpiar Registros", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_NOK, bd=0, pady=8, command=self.confirmar_y_eliminar_db)
+        self.btn_eliminar = tk.Button(frame_acc, text="🗑 Limpiar Registros", font=("Helvetica", 11, "bold"), fg="white", bg=COLOR_NOK, bd=0, pady=10, command=self.confirmar_y_eliminar_db)
         self.btn_eliminar.pack(side="right", expand=True, fill="x", padx=(4, 0))
         self.btn_eliminar.bind("<Enter>", lambda e: self.btn_eliminar.config(bg="#DC2626"))
         self.btn_eliminar.bind("<Leave>", lambda e: self.btn_eliminar.config(bg=COLOR_NOK))
+
+        # Botón para regresar a monitoreo
+        frame_cerrar_reg = tk.Frame(self.tab_registros, bg=COLOR_FONDO)
+        frame_cerrar_reg.pack(fill="x", pady=(15, 0))
+        btn_cerrar_reg = tk.Button(frame_cerrar_reg, text="✕ Cerrar Vista", font=("Helvetica", 11, "bold"), fg="white", bg="#64748B", bd=0, pady=10, padx=20, command=lambda: self.notebook.select(self.tab_monitoreo))
+        btn_cerrar_reg.pack(side="right")
 
         # --- PESTAÑA 4: GESTIÓN DE USUARIOS (Solo Admin) ---
         self.tab_usuarios = tk.Frame(self.notebook, bg=COLOR_FONDO)
@@ -991,7 +1003,7 @@ class LogoHMI:
         self.combo_new_role.pack(fill="x", pady=(2, 8))
         self.combo_new_role.set("Administrador")
 
-        btn_create_us = tk.Button(card_us_create, text="➕ Crear Usuario", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=6, command=self.crear_usuario_gui)
+        btn_create_us = tk.Button(card_us_create, text="➕ Crear Usuario", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=8, command=self.crear_usuario_gui)
         btn_create_us.pack(fill="x")
 
         # Tarjeta 2: Cambiar Contraseña / Eliminar Usuario
@@ -1009,11 +1021,17 @@ class LogoHMI:
         frame_edit_btns = tk.Frame(card_us_edit, bg=COLOR_TARJETA)
         frame_edit_btns.pack(fill="x")
 
-        self.btn_save_pass = tk.Button(frame_edit_btns, text="Guardar Pass", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=6, command=self.guardar_contrasena_gui)
+        self.btn_save_pass = tk.Button(frame_edit_btns, text="Guardar Pass", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, pady=8, command=self.guardar_contrasena_gui)
         self.btn_save_pass.pack(side="left", expand=True, fill="x", padx=(0, 3))
 
-        self.btn_delete_us = tk.Button(frame_edit_btns, text="Eliminar", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_NOK, bd=0, pady=6, command=self.eliminar_usuario_gui)
+        self.btn_delete_us = tk.Button(frame_edit_btns, text="Eliminar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_NOK, bd=0, pady=8, command=self.eliminar_usuario_gui)
         self.btn_delete_us.pack(side="right", expand=True, fill="x", padx=(3, 0))
+
+        # Botón para regresar a monitoreo
+        frame_cerrar_us = tk.Frame(frame_us_right, bg=COLOR_FONDO)
+        frame_cerrar_us.pack(fill="x", pady=(15, 0))
+        btn_cerrar_us = tk.Button(frame_cerrar_us, text="✕ Cerrar Vista", font=("Helvetica", 11, "bold"), fg="white", bg="#64748B", bd=0, pady=10, padx=20, command=lambda: self.notebook.select(self.tab_monitoreo))
+        btn_cerrar_us.pack(side="right")
 
         # --- PANEL DERECHO: GRÁFICA E HISTORIAL ---
         card_grafica = self.crear_tarjeta(right_panel)
