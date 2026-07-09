@@ -1139,18 +1139,29 @@ class LogoHMI:
             self.refrescar_usuarios_gui()
 
     def abrir_teclado_sistema(self, event=None):
-        # 1. Intentar cerrar instancias previas de wvkbd para evitar duplicaciones
+        # 1. Intentar mostrar Onboard por D-Bus (por si ya está corriendo en segundo plano)
         try:
-            subprocess.run(["killall", "wvkbd-mobintl"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.run(["killall", "wvkbd"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen([
+                "dbus-send",
+                "--type=method_call",
+                "--dest=org.onboard.Onboard",
+                "/org/onboard/Onboard/Keyboard",
+                "org.onboard.Onboard.Keyboard.Show"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
 
-        # 2. Intentar ejecutar el teclado nativo de Wayland en Raspberry Pi (wvkbd)
+        # 2. Si Onboard no está activo, intentar iniciar el ejecutable
+        try:
+            subprocess.Popen(["onboard"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        # 3. Intentar iniciar wvkbd (teclado nativo de Wayland) como fallback alternativo
         for cmd in ["wvkbd-mobintl", "wvkbd", "wvkbd-deskintl"]:
             try:
                 subprocess.Popen([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return
+                break
             except Exception:
                 continue
 
