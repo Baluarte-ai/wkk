@@ -343,6 +343,14 @@ class LogoHMI:
         self.login_overlay = tk.Frame(self.root, bg=COLOR_FONDO)
         self.login_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
 
+        # Botón Cerrar App (para cerrar el programa desde el Login)
+        btn_salir_login = tk.Button(self.login_overlay, text="✕", font=("Helvetica", 16, "bold"),
+                                    fg=COLOR_TEXTO_SEC, bg=COLOR_FONDO, bd=0, padx=15, pady=8,
+                                    activebackground=COLOR_NOK, activeforeground="white", command=self.on_closing)
+        btn_salir_login.place(relx=1.0, rely=0.0, anchor="ne", x=-15, y=15)
+        btn_salir_login.bind("<Enter>", lambda e: btn_salir_login.config(bg=COLOR_NOK, fg="white"))
+        btn_salir_login.bind("<Leave>", lambda e: btn_salir_login.config(bg=COLOR_FONDO, fg=COLOR_TEXTO_SEC))
+
         card = tk.Frame(self.login_overlay, bg=COLOR_TARJETA, highlightbackground=COLOR_BORDE,
                         highlightthickness=1, padx=40, pady=40)
         card.place(relx=0.5, rely=0.5, anchor="center")
