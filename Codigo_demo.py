@@ -1490,7 +1490,7 @@ class LogoHMI:
 
             cambiar_color_led(self.c_piston, self.led_piston, proceso_activo)
             cambiar_color_led(self.c_barrera, self.led_barrera, b_act)
-            cambiar_color_led(self.c_emergencia, self.led_emergencia, e_act)
+            cambiar_color_led(self.c_emergencia, self.led_emergencia, not e_act)
             cambiar_color_led(self.c_inicio, self.led_inicio, i_act)
         else: # Perfil: Operador
             # 1. Estado del Proceso (Pistón)
@@ -1499,8 +1499,8 @@ class LogoHMI:
             else:
                 self.lbl_piston_status_oper.config(text="PROCESO INACTIVO", bg="#E2E8F0", fg=COLOR_TEXTO_SEC)
             
-            # 2. Paro de Emergencia Gigante (Active-Low: True = OK / False = Pressed)
-            if e_act:
+            # 2. Paro de Emergencia Gigante (Active-High: True = Pressed / False = OK)
+            if not e_act:
                 self.c_emergencia_oper.itemconfig(self.led_emergencia_oper, fill=COLOR_OK, outline="#059669")
                 self.lbl_emergencia_text_oper.config(text="SISTEMA OK", fg=COLOR_OK)
             else:
