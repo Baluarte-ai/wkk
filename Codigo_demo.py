@@ -781,6 +781,29 @@ class LogoHMI:
         self.lbl_counter_nok_admin = tk.Label(frame_counters_admin, text="NOK: 0", font=("Helvetica", 12, "bold"), fg="white", bg=COLOR_NOK, pady=6)
         self.lbl_counter_nok_admin.pack(side="left", expand=True, fill="x", padx=(4, 0))
 
+        # Card de Progreso y Fuerza (Admin)
+        card_prog_admin = self.crear_tarjeta(self.frame_monitoreo_admin)
+        card_prog_admin.pack(fill="x", pady=(8, 0))
+        tk.Label(card_prog_admin, text="DURACIÓN DE CICLO", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA).pack(anchor="w", pady=(0, 5))
+        
+        self.lbl_progress_status_admin = tk.Label(card_prog_admin, text="Ciclo Inactivo", font=("Helvetica", 10, "bold"), fg=COLOR_TEXTO_SEC, bg=COLOR_TARJETA)
+        self.lbl_progress_status_admin.pack(pady=(2, 2))
+
+        self.frame_progress_admin = tk.Frame(card_prog_admin, bg="#E2E8F0", height=15)
+        self.frame_progress_admin.pack(fill="x", pady=(2, 4))
+        self.frame_progress_admin.pack_propagate(False)
+
+        self.bar_fill_admin = tk.Frame(self.frame_progress_admin, bg=COLOR_VERDE_WKK, height=15)
+        self.bar_fill_admin.place(x=0, y=0, width=0, height=15)
+
+        # Recuadro para Fuerza Registrada para Administrador (en verde llamativo y muy visible)
+        frame_prom_box_admin = tk.Frame(card_prog_admin, bg=COLOR_VERDE_CLARO, highlightbackground=COLOR_VERDE_WKK, highlightthickness=1.5, bd=0)
+        frame_prom_box_admin.pack(fill="x", pady=(8, 2))
+        
+        tk.Label(frame_prom_box_admin, text="FUERZA REGISTRADA", font=("Helvetica", 10, "bold"), fg=COLOR_VERDE_OSCURO, bg=COLOR_VERDE_CLARO).pack(pady=(6, 2))
+        self.lbl_average_display_admin = tk.Label(frame_prom_box_admin, text="-- kg", font=("Helvetica", 24, "bold"), fg=COLOR_VERDE_OSCURO, bg=COLOR_VERDE_CLARO)
+        self.lbl_average_display_admin.pack(pady=(0, 6))
+
         # --- VISTA OPERADOR ---
         # Card 1: Estado del Proceso
         card_proc_oper = self.crear_tarjeta(self.frame_monitoreo_operador)
@@ -838,6 +861,14 @@ class LogoHMI:
 
         self.bar_fill_oper = tk.Frame(self.frame_progress_oper, bg=COLOR_VERDE_WKK, height=15)
         self.bar_fill_oper.place(x=0, y=0, width=0, height=15)
+
+        # Recuadro para Fuerza Registrada para Operador (en verde llamativo y muy visible)
+        frame_prom_box_oper = tk.Frame(card_prog_oper, bg=COLOR_VERDE_CLARO, highlightbackground=COLOR_VERDE_WKK, highlightthickness=1.5, bd=0)
+        frame_prom_box_oper.pack(fill="x", pady=(8, 2))
+        
+        tk.Label(frame_prom_box_oper, text="FUERZA REGISTRADA", font=("Helvetica", 10, "bold"), fg=COLOR_VERDE_OSCURO, bg=COLOR_VERDE_CLARO).pack(pady=(6, 2))
+        self.lbl_average_display_oper = tk.Label(frame_prom_box_oper, text="-- kg", font=("Helvetica", 24, "bold"), fg=COLOR_VERDE_OSCURO, bg=COLOR_VERDE_CLARO)
+        self.lbl_average_display_oper.pack(pady=(0, 6))
 
 
 
@@ -1396,6 +1427,10 @@ class LogoHMI:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
                 self.cycle_forces_list = [v6]
+                if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                    self.lbl_average_display_oper.config(text="Prensando...")
+                if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                    self.lbl_average_display_admin.config(text="Prensando...")
             else:
                 self.cycle_forces_list.append(v6)
         else:
@@ -1433,6 +1468,12 @@ class LogoHMI:
                     self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {average_force} kg")
                     self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
                     self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
+
+                # Actualizar indicadores verdes grandes
+                if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                    self.lbl_average_display_oper.config(text=f"{average_force} kg")
+                if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                    self.lbl_average_display_admin.config(text=f"{average_force} kg")
                 
                 # Auto refrescar tabla de registros
                 self.refrescar_tabla_gui()
@@ -1466,36 +1507,58 @@ class LogoHMI:
                 self.c_emergencia_oper.itemconfig(self.led_emergencia_oper, fill=COLOR_NOK, outline="#DC2626")
                 self.lbl_emergencia_text_oper.config(text="⚠️ PARO DE EMERGENCIA ACTIVO ⚠️", fg=COLOR_NOK)
 
-            # 3. Barra de Progreso del Ciclo (usando los segundos del PLC en 'v4')
-            v4_lim = max(0.1, v4)
-            if proceso_activo and self.cycle_start_time is not None:
-                elapsed = time.time() - self.cycle_start_time
-                pct = min(elapsed / v4_lim, 1.0)
-                self.lbl_progress_status_oper.config(text=f"Progreso del Ciclo: {elapsed:.1f} s / {v4:.1f} s")
-            else:
-                pct = 0.0
-                self.lbl_progress_status_oper.config(text=f"Ciclo Inactivo (Límite: {v4:.1f} s)")
-            
-            # Actualizar ancho de la barra
-            self.root.update_idletasks()
-            total_w = self.frame_progress_oper.winfo_width()
-            target_w = int(total_w * pct)
-            self.bar_fill_oper.place_configure(width=target_w)
+        # Actualizar Barra de Progreso del Ciclo en ambas vistas (Admin y Operador)
+        v4_lim = max(0.1, v4)
+        if proceso_activo and self.cycle_start_time is not None:
+            elapsed = time.time() - self.cycle_start_time
+            pct = min(elapsed / v4_lim, 1.0)
+            status_text = f"Progreso del Ciclo: {elapsed:.1f} s / {v4:.1f} s"
+        else:
+            pct = 0.0
+            status_text = f"Ciclo Inactivo (Límite: {v4:.1f} s)"
+        
+        # Actualizar textos de progreso
+        if hasattr(self, 'lbl_progress_status_oper') and self.lbl_progress_status_oper.winfo_exists():
+            self.lbl_progress_status_oper.config(text=status_text)
+        if hasattr(self, 'lbl_progress_status_admin') and self.lbl_progress_status_admin.winfo_exists():
+            self.lbl_progress_status_admin.config(text=status_text)
+        
+        # Actualizar anchos de la barra sin update_idletasks para evitar congelamiento
+        try:
+            if hasattr(self, 'frame_progress_oper') and self.frame_progress_oper.winfo_exists():
+                total_w = self.frame_progress_oper.winfo_width()
+                if total_w > 1:
+                    target_w = int(total_w * pct)
+                    self.bar_fill_oper.place_configure(width=target_w)
+            if hasattr(self, 'frame_progress_admin') and self.frame_progress_admin.winfo_exists():
+                total_w = self.frame_progress_admin.winfo_width()
+                if total_w > 1:
+                    target_w = int(total_w * pct)
+                    self.bar_fill_admin.place_configure(width=target_w)
+        except Exception:
+            pass
 
         # Actualizar gráfica
         self.grafica_datos.append(v6)
-        self.line.set_ydata(self.grafica_datos)
-        
         self.datos_limite.append(v0)
-        self.line_limite.set_ydata(self.datos_limite)
 
-        max_limit = max(max(self.grafica_datos), v0)
-        if max_limit > self.ax.get_ylim()[1]:
-            self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
-        elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
-            self.ax.set_ylim(0, max(100, max_limit + 15))
-            
-        self.canvas.draw()
+        # Redibujar gráfica solo cada 5 ciclos (~500ms) para no bloquear el hilo GUI y mantener la respuesta táctil
+        draw_cnt = getattr(self, 'graph_draw_counter', 0)
+        draw_cnt += 1
+        if draw_cnt >= 5:
+            self.graph_draw_counter = 0
+            self.line.set_ydata(self.grafica_datos)
+            self.line_limite.set_ydata(self.datos_limite)
+
+            max_limit = max(max(self.grafica_datos), v0)
+            if max_limit > self.ax.get_ylim()[1]:
+                self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
+            elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
+                self.ax.set_ylim(0, max(100, max_limit + 15))
+                
+            self.canvas.draw()
+        else:
+            self.graph_draw_counter = draw_cnt
 
         # Log local en pantalla (cada 1s)
         self.tick_counter += 1
