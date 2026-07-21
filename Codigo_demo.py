@@ -227,6 +227,7 @@ class LogoHMI:
         # Historial de gráfica
         self.grafica_datos = collections.deque([0]*50, maxlen=50)
         self.datos_limite = collections.deque([0]*50, maxlen=50)
+        self.v6_filtrado_prev = 0
 
         # Estado del usuario
         self.perfil_actual = "operador"
@@ -1416,67 +1417,87 @@ class LogoHMI:
     def update_gui(self, v0, v4, v6, p_act, b_act, e_act, i_act):
         if not self.is_connected: return
 
+        # Aplicar filtro de promedio móvil exponencial (EMA) para suavizar la fuerza y remover picos rápidos
+        alpha = 0.35  # Ajuste de suavizado
+        v6_filtrado = int(round(alpha * v6 + (1 - alpha) * self.v6_filtrado_prev))
+        self.v6_filtrado_prev = v6_filtrado
+
         self.lbl_v0.config(text=str(v0))
         self.lbl_v4.config(text=f"{v4:.1f} s")
-        self.lbl_v6_actual.config(text=f"Valor actual: {v6}")
+        self.lbl_v6_actual.config(text=f"Valor actual: {v6_filtrado}")
 
-        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza > 10 kg o comando de pistón activo) ---
-        proceso_activo = (v6 > 10) or p_act
+        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza filtrada > 10 kg o comando de pistón activo) ---
+        proceso_activo = (v6_filtrado > 10) or p_act
         
         if proceso_activo:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
-                self.cycle_forces_list = [v6]
+                self.cycle_forces_list = []  # Inicializar lista vacía para ignorar el golpe inicial
                 if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
                     self.lbl_average_display_oper.config(text="Prensando...")
                 if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
                     self.lbl_average_display_admin.config(text="Prensando...")
             else:
-                self.cycle_forces_list.append(v6)
+                # Omitir el pico de impacto inicial ignorando lecturas de los primeros 0.4 segundos
+                elapsed_time = time.time() - self.cycle_start_time
+                if elapsed_time > 0.4:
+                    self.cycle_forces_list.append(v6_filtrado)
         else:
             if self.cycle_start_time is not None:
-                # El ciclo acaba de terminar!
-                if self.cycle_forces_list:
-                    average_force = max(self.cycle_forces_list)
-                else:
-                    average_force = v6
+                # El ciclo acaba de terminar. Evaluamos la duración total del ciclo
+                elapsed_total = time.time() - self.cycle_start_time
                 
-                resultado = "OK" if average_force >= v0 else "NOK"
-                
-                # Registrar en base de datos
-                self.registrar_ciclo_db(average_force, resultado, v0)
-                
-                # Actualizar contadores
-                if resultado == "OK":
-                    self.total_ok_count += 1
-                else:
-                    self.total_nok_count += 1
+                # Si duró al menos 0.4 segundos, es un ciclo de prensado real (no un golpe por colocación o ruido)
+                if elapsed_total >= 0.4:
+                    if self.cycle_forces_list:
+                        average_force = max(self.cycle_forces_list)
+                    else:
+                        average_force = v6_filtrado
                     
-                self.last_piece_result = resultado
-                self.last_piece_force = average_force
-                
-                # Refrescar labels del operador
-                if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
-                    self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
-                    self.lbl_last_force.config(text=f"Fuerza Registrada: {average_force} kg")
-                    self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
-                    self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
-                
-                # Refrescar labels del administrador
-                if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
-                    self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
-                    self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {average_force} kg")
-                    self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
-                    self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
+                    resultado = "OK" if average_force >= v0 else "NOK"
+                    
+                    # Registrar en base de datos
+                    self.registrar_ciclo_db(average_force, resultado, v0)
+                    
+                    # Actualizar contadores
+                    if resultado == "OK":
+                        self.total_ok_count += 1
+                    else:
+                        self.total_nok_count += 1
+                        
+                    self.last_piece_result = resultado
+                    self.last_piece_force = average_force
+                    
+                    # Refrescar labels del operador
+                    if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
+                        self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                        self.lbl_last_force.config(text=f"Fuerza Registrada: {average_force} kg")
+                        self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
+                        self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
+                    
+                    # Refrescar labels del administrador
+                    if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
+                        self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                        self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {average_force} kg")
+                        self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
+                        self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
 
-                # Actualizar indicadores verdes grandes
-                if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
-                    self.lbl_average_display_oper.config(text=f"{average_force} kg")
-                if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
-                    self.lbl_average_display_admin.config(text=f"{average_force} kg")
-                
-                # Auto refrescar tabla de registros
-                self.refrescar_tabla_gui()
+                    # Actualizar indicadores verdes grandes
+                    if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                        self.lbl_average_display_oper.config(text=f"{average_force} kg")
+                    if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                        self.lbl_average_display_admin.config(text=f"{average_force} kg")
+                    
+                    # Auto refrescar tabla de registros
+                    self.refrescar_tabla_gui()
+                else:
+                    # El ciclo fue menor a 0.4s: se ignora como un "falso inicio" (colocación o ruido).
+                    # Restauramos los displays visuales al último valor real registrado
+                    if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                        self.lbl_average_display_oper.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
+                    if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                        self.lbl_average_display_admin.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
+
                 self.cycle_start_time = None
 
         self.piston_last_state = proceso_activo
@@ -1539,7 +1560,7 @@ class LogoHMI:
             pass
 
         # Actualizar gráfica
-        self.grafica_datos.append(v6)
+        self.grafica_datos.append(v6_filtrado)
         self.datos_limite.append(v0)
 
         # Redibujar gráfica solo cada 5 ciclos (~500ms) para no bloquear el hilo GUI y mantener la respuesta táctil
@@ -1564,7 +1585,7 @@ class LogoHMI:
         self.tick_counter += 1
         if self.tick_counter >= 10:
             hora_actual = time.strftime("%H:%M:%S")
-            self.listbox_log.insert(0, f"[{hora_actual}] Fuerza: {v6} | P:{1 if p_act else 0} B:{1 if b_act else 0} E:{1 if e_act else 0} I:{1 if i_act else 0}")
+            self.listbox_log.insert(0, f"[{hora_actual}] Fuerza: {v6_filtrado} | P:{1 if p_act else 0} B:{1 if b_act else 0} E:{1 if e_act else 0} I:{1 if i_act else 0}")
             if self.listbox_log.size() > 100:
                 self.listbox_log.delete(100, tk.END)
             self.tick_counter = 0
