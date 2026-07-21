@@ -1269,8 +1269,8 @@ class LogoHMI:
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6_filtrado}")
 
-        # --- DETECCIÓN DE CICLOS (Proceso activo si fuerza filtrada > 10 kg o comando de pistón activo) ---
-        proceso_activo = (v6_filtrado > 10) or p_act
+        # --- DETECCIÓN DE CICLOS (Proceso activo exclusivamente cuando el pistón está activo) ---
+        proceso_activo = p_act
         
         if proceso_activo:
             if self.cycle_start_time is None:
