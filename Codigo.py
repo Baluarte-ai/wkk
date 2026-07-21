@@ -1276,6 +1276,8 @@ class LogoHMI:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
                 self.cycle_forces_list = []  # Inicializar lista vacía para ignorar el golpe inicial
+                self.grafica_datos.clear()   # Limpiar trazado de gráfica anterior al iniciar ciclo
+                self.datos_limite.clear()
                 if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
                     self.lbl_average_display_oper.config(text="Prensando...")
                 if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
@@ -1341,6 +1343,7 @@ class LogoHMI:
                     if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
                         self.lbl_average_display_admin.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
 
+                self.graph_draw_counter = 4  # Forzar redibujado de la curva final al cerrar el ciclo
                 self.cycle_start_time = None
 
         self.piston_last_state = proceso_activo
@@ -1402,19 +1405,24 @@ class LogoHMI:
         except Exception:
             pass
 
-        # Actualizar gráfica
-        self.grafica_datos.append(v6_filtrado)
-        self.datos_limite.append(v0)
+        # Actualizar gráfica solo si el proceso está activo
+        if proceso_activo:
+            self.grafica_datos.append(v6_filtrado)
+            self.datos_limite.append(v0)
 
         # Redibujar gráfica solo cada 5 ciclos (~500ms) para no bloquear el hilo GUI y mantener la respuesta táctil
         draw_cnt = getattr(self, 'graph_draw_counter', 0)
         draw_cnt += 1
         if draw_cnt >= 5:
             self.graph_draw_counter = 0
-            self.line.set_ydata(self.grafica_datos)
-            self.line_limite.set_ydata(self.datos_limite)
+            self.line.set_xdata(list(range(len(self.grafica_datos))))
+            self.line.set_ydata(list(self.grafica_datos))
+            self.line_limite.set_xdata(list(range(len(self.datos_limite))))
+            self.line_limite.set_ydata(list(self.datos_limite))
+            self.ax.set_xlim(0, 50)
 
-            max_limit = max(max(self.grafica_datos), v0)
+            max_val = max(self.grafica_datos) if self.grafica_datos else 0
+            max_limit = max(max_val, v0)
             if max_limit > self.ax.get_ylim()[1]:
                 self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
             elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
