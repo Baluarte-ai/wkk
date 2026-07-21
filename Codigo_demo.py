@@ -1686,11 +1686,11 @@ class LogoHMI:
                 self.lbl_emergencia_text_oper.config(text="⚠️ PARO DE EMERGENCIA ACTIVO ⚠️", fg=COLOR_NOK)
 
         # Actualizar Barra de Progreso del Ciclo en ambas vistas (Admin y Operador)
-        v4_lim = max(0.1, v4)
+        tc_lim = max(0.1, self.tiempo_ciclo)
         if proceso_activo and self.cycle_start_time is not None:
             elapsed = time.time() - self.cycle_start_time
-            pct = min(elapsed / v4_lim, 1.0)
-            status_text = f"Progreso del Ciclo: {elapsed:.1f} s"
+            pct = min(elapsed / tc_lim, 1.0)
+            status_text = f"Progreso del Ciclo: {elapsed:.1f} s / {self.tiempo_ciclo:.1f} s"
         else:
             pct = 0.0
             status_text = "Ciclo Inactivo"
