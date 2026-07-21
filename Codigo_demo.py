@@ -245,6 +245,8 @@ class LogoHMI:
         self.running_loop = True  
         self.piston_state = False
         self.tick_counter = 0
+        self.timeout_triggered = False
+        self.original_v8_before_timeout = None
 
         # Historial de gráfica
         self.grafica_datos = collections.deque([0]*50, maxlen=50)
@@ -1484,74 +1486,131 @@ class LogoHMI:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
                 self.cycle_forces_list = []  # Inicializar lista vacía para ignorar el golpe inicial
+                self.timeout_triggered = False
+                self.original_v8_before_timeout = None
                 if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
                     self.lbl_average_display_oper.config(text="Prensando...")
                 if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
                     self.lbl_average_display_admin.config(text="Prensando...")
             else:
-                # Omitir el pico de impacto inicial ignorando lecturas de los primeros 0.4 segundos
                 elapsed_time = time.time() - self.cycle_start_time
+                # Omitir el pico de impacto inicial ignorando lecturas de los primeros 0.4 segundos
                 if elapsed_time > 0.4:
                     self.cycle_forces_list.append(v6_filtrado)
-        else:
-            if self.cycle_start_time is not None:
-                # El ciclo acaba de terminar. Evaluamos la duración total del ciclo
-                elapsed_total = time.time() - self.cycle_start_time
                 
-                # Si duró al menos 0.4 segundos, es un ciclo de prensado real (no un golpe por colocación o ruido)
-                if elapsed_total >= 0.4:
-                    if self.cycle_forces_list:
-                        average_force = max(self.cycle_forces_list)
-                    else:
-                        average_force = v6_filtrado
+                # DETECCIÓN DE TIMEOUT (si el ciclo dura más de v4 + 2.0 segundos)
+                timeout_limite = v4 + 2.0
+                if elapsed_time > timeout_limite and not self.timeout_triggered:
+                    self.timeout_triggered = True
+                    self.original_v8_before_timeout = v8  # Guardar valor actual para restaurar después
                     
-                    # Ventana de control de calidad usando Fuerza Máxima si está configurada (> 0)
-                    if v8 > 0:
-                        resultado = "OK" if (v0 <= average_force <= v8) else "NOK"
-                    else:
-                        resultado = "OK" if average_force >= v0 else "NOK"
+                    average_force = max(self.cycle_forces_list) if self.cycle_forces_list else v6_filtrado
+                    resultado = "NOK"
                     
-                    # Registrar en base de datos
+                    # Registrar en base de datos de inmediato como NOK
                     self.registrar_ciclo_db(average_force, resultado, v0)
-                    
-                    # Actualizar contadores
-                    if resultado == "OK":
-                        self.total_ok_count += 1
-                    else:
-                        self.total_nok_count += 1
-                        
+                    self.total_nok_count += 1
                     self.last_piece_result = resultado
                     self.last_piece_force = average_force
                     
                     # Refrescar labels del operador
                     if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
-                        self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                        self.lbl_last_piece.config(text="ÚLTIMA PIEZA: NOK (TIMEOUT)", bg=COLOR_NOK, fg="white")
                         self.lbl_last_force.config(text=f"Fuerza Registrada: {average_force} kg")
                         self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
                         self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
                     
                     # Refrescar labels del administrador
                     if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
-                        self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                        self.lbl_last_piece_admin.config(text="ÚLTIMA PIEZA: NOK (TIMEOUT)", bg=COLOR_NOK, fg="white")
                         self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {average_force} kg")
                         self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
                         self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
-
-                    # Actualizar indicadores verdes grandes
+                    
                     if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
                         self.lbl_average_display_oper.config(text=f"{average_force} kg")
                     if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
                         self.lbl_average_display_admin.config(text=f"{average_force} kg")
                     
-                    # Auto refrescar tabla de registros
                     self.refrescar_tabla_gui()
+                    
+                    # Forzar el regreso del pistón escribiendo 0 kg a la Fuerza Máxima (b008_max)
+                    try:
+                        threading.Thread(target=self.escribir_vw, args=('b008_max', '0', True), daemon=True).start()
+                        print(f"-> TIMEOUT DETECTADO ({elapsed_time:.1f}s). Escribiendo 0 kg a Fuerza Máxima para retraer pistón.")
+                    except Exception as e:
+                        print(f"Error al escribir VW8 por timeout: {e}")
+        else:
+            if self.cycle_start_time is not None:
+                if self.timeout_triggered:
+                    # Si terminó por timeout, ya guardamos y contamos. Solo restauramos el límite máximo original.
+                    if self.original_v8_before_timeout is not None:
+                        try:
+                            threading.Thread(target=self.escribir_vw, args=('b008_max', str(self.original_v8_before_timeout), True), daemon=True).start()
+                            print(f"-> Restaurando Fuerza Máxima original: {self.original_v8_before_timeout} kg")
+                        except Exception as e:
+                            print(f"Error al restaurar VW8: {e}")
+                    self.timeout_triggered = False
+                    self.cycle_start_time = None
+                    self.original_v8_before_timeout = None
                 else:
-                    # El ciclo fue menor a 0.4s: se ignora como un "falso inicio" (colocación o ruido).
-                    # Restauramos los displays visuales al último valor real registrado
-                    if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
-                        self.lbl_average_display_oper.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
-                    if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
-                        self.lbl_average_display_admin.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
+                    # El ciclo acaba de terminar normalmente. Evaluamos la duración total del ciclo
+                    elapsed_total = time.time() - self.cycle_start_time
+                    
+                    # Si duró al menos 0.4 segundos, es un ciclo de prensado real (no un golpe por colocación o ruido)
+                    if elapsed_total >= 0.4:
+                        if self.cycle_forces_list:
+                            average_force = max(self.cycle_forces_list)
+                        else:
+                            average_force = v6_filtrado
+                        
+                        # Ventana de control de calidad usando Fuerza Máxima si está configurada (> 0)
+                        if v8 > 0:
+                            resultado = "OK" if (v0 <= average_force <= v8) else "NOK"
+                        else:
+                            resultado = "OK" if average_force >= v0 else "NOK"
+                        
+                        # Registrar en base de datos
+                        self.registrar_ciclo_db(average_force, resultado, v0)
+                        
+                        # Actualizar contadores
+                        if resultado == "OK":
+                            self.total_ok_count += 1
+                        else:
+                            self.total_nok_count += 1
+                            
+                        self.last_piece_result = resultado
+                        self.last_piece_force = average_force
+                        
+                        # Refrescar labels del operador
+                        if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
+                            self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                            self.lbl_last_force.config(text=f"Fuerza Registrada: {average_force} kg")
+                            self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
+                            self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
+                        
+                        # Refrescar labels del administrador
+                        if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
+                            self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {resultado}", bg=COLOR_OK if resultado == "OK" else COLOR_NOK, fg="white")
+                            self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {average_force} kg")
+                            self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
+                            self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
+
+                        # Actualizar indicadores verdes grandes
+                        if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                            self.lbl_average_display_oper.config(text=f"{average_force} kg")
+                        if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                            self.lbl_average_display_admin.config(text=f"{average_force} kg")
+                        
+                        # Auto refrescar tabla de registros
+                        self.refrescar_tabla_gui()
+                    else:
+                        # El ciclo fue menor a 0.4s: se ignora como un "falso inicio" (colocación o ruido).
+                        # Restauramos los displays visuales al último valor real registrado
+                        if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
+                            self.lbl_average_display_oper.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
+                        if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
+                            self.lbl_average_display_admin.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
 
                 self.graph_draw_counter = 4  # Forzar redibujado de la curva final al cerrar el ciclo
                 self.cycle_start_time = None
