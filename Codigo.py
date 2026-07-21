@@ -60,13 +60,15 @@ MAPEO = {
     'b004_retardo': {'db': 1, 'start': 4,  'size': 2}, # VW4 (Segundo)
     'b001_ax':      {'db': 1, 'start': 6,  'size': 2}, # VW6 (Gráfica)
     'b008_max':     {'db': 1, 'start': 8,  'size': 2}, # VW8 (Fuerza Máxima)
-    'b010_max_off': {'db': 1, 'start': 10, 'size': 2}, # VW10 (Máxima Oculto)
-    'piston':       {'db': 1, 'start': 12, 'size': 1, 'bit': 0}, # V12.0 (Pistón desplazado)
+    'piston':       {'db': 1, 'start': 10, 'size': 1, 'bit': 0}, # V10.0 (Revertido a original)
     
-    # --- INDICADORES (SALIDAS DE RED EN BYTE 14) ---
-    'barrera':      {'db': 1, 'start': 14, 'size': 1, 'bit': 0}, # V14.0 (Desplazado)
-    'emergencia':   {'db': 1, 'start': 14, 'size': 1, 'bit': 1}, # V14.1 (Desplazado)
-    'inicio_btn':   {'db': 1, 'start': 14, 'size': 1, 'bit': 2}  # V14.2 (Desplazado)
+    # --- INDICADORES (SALIDAS DE RED EN BYTE 12) ---
+    'barrera':      {'db': 1, 'start': 12, 'size': 1, 'bit': 0}, # V12.0 (Revertido a original)
+    'emergencia':   {'db': 1, 'start': 12, 'size': 1, 'bit': 1}, # V12.1 (Revertido a original)
+    'inicio_btn':   {'db': 1, 'start': 12, 'size': 1, 'bit': 2}, # V12.2 (Revertido a original)
+    
+    # --- NUEVA VARIABLE MÁXIMA OCULTA DESPLAZADA ---
+    'b014_max_off': {'db': 1, 'start': 14, 'size': 2}  # VW14 (Desplazada para no chocar)
 }
 
 # --- PALETA DE COLORES PREMIUM (WKK) ---
@@ -1169,7 +1171,7 @@ class LogoHMI:
             raw_v8 = self.plc_client.db_read(MAPEO['b008_max']['db'], MAPEO['b008_max']['start'], MAPEO['b008_max']['size'])
             v8 = int(round(max(0, get_int(raw_v8, 0) - OFFSET) / 3.5))
 
-            self.plc_client.db_read(MAPEO['b010_max_off']['db'], MAPEO['b010_max_off']['start'], MAPEO['b010_max_off']['size'])
+            self.plc_client.db_read(MAPEO['b014_max_off']['db'], MAPEO['b014_max_off']['start'], MAPEO['b014_max_off']['size'])
 
             raw_piston = self.plc_client.db_read(MAPEO['piston']['db'], MAPEO['piston']['start'], MAPEO['piston']['size'])
             p_act = get_bool(raw_piston, 0, MAPEO['piston']['bit'])
@@ -1264,7 +1266,7 @@ class LogoHMI:
                 valor_final_v10 = valor_v10 + OFFSET 
                 buffer_v10 = bytearray(2)
                 set_int(buffer_v10, 0, valor_final_v10)
-                self.plc_client.db_write(MAPEO['b010_max_off']['db'], MAPEO['b010_max_off']['start'], buffer_v10)
+                self.plc_client.db_write(MAPEO['b014_max_off']['db'], MAPEO['b014_max_off']['start'], buffer_v10)
                 self.update_status_gui(f"Fuerza Máxima modificada a {valor_entero}.", "blue")
         except ValueError:
             messagebox.showerror("Error", "Ingresa un número entero válido.")
