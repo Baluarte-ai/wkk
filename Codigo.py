@@ -39,15 +39,23 @@ def cargar_config_red():
     try:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                if "tiempo_ciclo" not in data:
+                    data["tiempo_ciclo"] = 5.0
+                return data
     except Exception as e:
         print(f"Error al cargar config de red: {e}")
-    return {"ip": "192.168.0.3", "rack": 0, "slot": 1}
+    return {"ip": "192.168.0.3", "rack": 0, "slot": 1, "tiempo_ciclo": 5.0}
 
-def guardar_config_red(ip, rack, slot):
+def guardar_config_red(ip, rack, slot, tiempo_ciclo):
     try:
         with open(CONFIG_FILE, "w") as f:
-            json.dump({"ip": ip, "rack": int(rack), "slot": int(slot)}, f)
+            json.dump({
+                "ip": ip, 
+                "rack": int(rack), 
+                "slot": int(slot),
+                "tiempo_ciclo": float(tiempo_ciclo)
+            }, f)
     except Exception as e:
         print(f"Error al guardar config de red: {e}")
 
@@ -100,6 +108,7 @@ class LogoHMI:
         self.plc_ip = config_red["ip"]
         self.plc_rack = config_red["rack"]
         self.plc_slot = config_red["slot"]
+        self.tiempo_ciclo = float(config_red.get("tiempo_ciclo", 5.0))
 
         self.plc_client = snap7.client.Client()
         self.is_connected = False
@@ -297,9 +306,11 @@ class LogoHMI:
             self.entry_v0.config(state="disabled")
             self.entry_v8.config(state="disabled")
             self.entry_v4.config(state="disabled")
+            self.entry_tc.config(state="disabled")
             self.btn_write_v0.config(state="disabled")
             self.btn_write_v8.config(state="disabled")
             self.btn_write_v4.config(state="disabled")
+            self.btn_write_tc.config(state="disabled")
             
             # Deshabilitar red
             self.entry_ip.config(state="disabled")
@@ -326,9 +337,11 @@ class LogoHMI:
             self.entry_v0.config(state="normal")
             self.entry_v8.config(state="normal")
             self.entry_v4.config(state="normal")
+            self.entry_tc.config(state="normal")
             self.btn_write_v0.config(state="normal")
             self.btn_write_v8.config(state="normal")
             self.btn_write_v4.config(state="normal")
+            self.btn_write_tc.config(state="normal")
             
             # Habilitar red
             self.entry_ip.config(state="normal")
@@ -800,6 +813,17 @@ class LogoHMI:
         self.btn_write_v4 = tk.Button(frame_v4, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=lambda: self.escribir_retardo(self.entry_v4.get()))
         self.btn_write_v4.pack(side="left", padx=5)
 
+        # Ajuste Tiempo de Ciclo (Límite Máximo / Timeout)
+        frame_tc = tk.Frame(card_p, bg=COLOR_TARJETA)
+        frame_tc.pack(fill="x", pady=5)
+        tk.Label(frame_tc, text="Tiempo de Ciclo (Max):", font=("Helvetica", 10), fg=COLOR_TEXTO, bg=COLOR_TARJETA, width=20, anchor="w").pack(side="left")
+        self.lbl_tc = tk.Label(frame_tc, text=f"{self.tiempo_ciclo:.1f} s", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA, width=6, anchor="w")
+        self.lbl_tc.pack(side="left")
+        self.entry_tc = tk.Entry(frame_tc, font=("Helvetica", 10), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
+        self.entry_tc.pack(side="left", padx=5)
+        self.btn_write_tc = tk.Button(frame_tc, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=self.guardar_tiempo_ciclo)
+        self.btn_write_tc.pack(side="left", padx=5)
+
         # Card 2: Configuración de Red (Solo Admin)
         card_red = self.crear_tarjeta(self.tab_parametros)
         card_red.pack(fill="x", pady=(10, 0))
@@ -1055,7 +1079,7 @@ class LogoHMI:
         self.scrollbar.config(command=self.listbox_log.yview)
 
         # Vincular campos de entrada con el Teclado Virtual del Sistema (Raspberry Pi OS)
-        for entry in [self.entry_v0, self.entry_v8, self.entry_v4, self.entry_ip, self.entry_rack, self.entry_slot, 
+        for entry in [self.entry_v0, self.entry_v8, self.entry_v4, self.entry_tc, self.entry_ip, self.entry_rack, self.entry_slot, 
                       self.entry_fecha_filtro, self.entry_new_user, self.entry_new_pass, self.entry_edit_pass]:
             entry.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
             entry.bind("<Return>", lambda e: self.cerrar_teclado_sistema())
@@ -1207,7 +1231,7 @@ class LogoHMI:
             messagebox.showerror("Error", "Rack y Slot deben ser números enteros.")
             return
 
-        guardar_config_red(ip, rack, slot)
+        guardar_config_red(ip, rack, slot, self.tiempo_ciclo)
 
         self.plc_ip = ip
         self.plc_rack = rack
@@ -1291,6 +1315,19 @@ class LogoHMI:
         except Exception as e:
             print(f"Fallo de escritura: {e}")
 
+    def guardar_tiempo_ciclo(self):
+        val_str = self.entry_tc.get().strip()
+        try:
+            val = float(val_str)
+            if val <= 0.5:
+                raise ValueError("El tiempo de ciclo máximo debe ser mayor a 0.5 s.")
+            self.tiempo_ciclo = val
+            self.lbl_tc.config(text=f"{self.tiempo_ciclo:.1f} s")
+            guardar_config_red(self.plc_ip, self.plc_rack, self.plc_slot, self.tiempo_ciclo)
+            self.update_status_gui(f"Tiempo de ciclo máximo configurado a {self.tiempo_ciclo} s.", "blue")
+        except ValueError as e:
+            messagebox.showerror("Error", str(e) if "mayor a" in str(e) else "Ingresa un tiempo válido.")
+
     # --- ACTUALIZACIÓN DE INTERFAZ ---
     def update_gui(self, v0, v4, v6, p_act, b_act, e_act, i_act, v8):
         if not self.is_connected: return
@@ -1324,8 +1361,8 @@ class LogoHMI:
                 if elapsed_time > 0.4:
                     self.cycle_forces_list.append(v6_filtrado)
                 
-                # DETECCIÓN DE TIMEOUT (si el ciclo dura más de v4 + 2.0 segundos)
-                timeout_limite = v4 + 2.0
+                # DETECCIÓN DE TIMEOUT (si el ciclo dura más de tiempo_ciclo segundos)
+                timeout_limite = self.tiempo_ciclo
                 if elapsed_time > timeout_limite and not self.timeout_triggered:
                     self.timeout_triggered = True
                     self.original_v8_before_timeout = v8  # Guardar valor actual para restaurar después
