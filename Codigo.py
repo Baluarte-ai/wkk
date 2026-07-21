@@ -59,7 +59,7 @@ def guardar_config_red(ip, rack, slot, tiempo_ciclo):
     except Exception as e:
         print(f"Error al guardar config de red: {e}")
 
-OFFSET = 1960 
+OFFSET = 1925 # Desplazamiento de +10 kg en HMI/Registros (1960 - 35)
 
 # --- MAPEO COMPLETO DE MEMORIA ---
 MAPEO = {
@@ -1762,6 +1762,11 @@ class LogoHMI:
         pass_win.transient(self.root)
         pass_win.grab_set()
 
+        def al_cerrar_modal():
+            self.cerrar_teclado_sistema()
+            pass_win.destroy()
+        pass_win.protocol("WM_DELETE_WINDOW", al_cerrar_modal)
+
         w_w, w_h = 320, 160
         s_w = pass_win.winfo_screenwidth()
         s_h = pass_win.winfo_screenheight()
@@ -1773,6 +1778,11 @@ class LogoHMI:
         entry_pass_del = tk.Entry(pass_win, font=("Helvetica", 12), show="*", justify="center", bg="#F8F9FA", fg=COLOR_TEXTO, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat")
         entry_pass_del.pack(pady=5, padx=20, fill="x")
         entry_pass_del.focus()
+
+        # Vincular teclado virtual
+        entry_pass_del.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
+        entry_pass_del.bind("<Return>", lambda e: self.cerrar_teclado_sistema())
+        entry_pass_del.bind("<FocusOut>", lambda e: self.cerrar_teclado_sistema())
 
         def ejecutar_eliminacion():
             pwd = entry_pass_del.get()
@@ -1787,7 +1797,7 @@ class LogoHMI:
                     self.refrescar_tabla_gui()
                     self.listbox_log.delete(0, tk.END)
                     messagebox.showinfo("Éxito", "Todos los registros de la base de datos han sido eliminados.", parent=pass_win)
-                    pass_win.destroy()
+                    al_cerrar_modal()
                 except Exception as e:
                     messagebox.showerror("Error", f"No se pudo limpiar la base de datos:\n{e}", parent=pass_win)
             else:
@@ -1797,7 +1807,7 @@ class LogoHMI:
         btn_frame.pack(fill="x", pady=12)
 
         tk.Button(btn_frame, text="Confirmar", font=("Helvetica", 9, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=ejecutar_eliminacion).pack(side="left", padx=(30, 10), expand=True, fill="x")
-        tk.Button(btn_frame, text="Cancelar", font=("Helvetica", 9, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", bd=0, padx=12, pady=6, command=pass_win.destroy).pack(side="right", padx=(10, 30), expand=True, fill="x")
+        tk.Button(btn_frame, text="Cancelar", font=("Helvetica", 9, "bold"), fg=COLOR_TEXTO_SEC, bg="#E2E8F0", bd=0, padx=12, pady=6, command=al_cerrar_modal).pack(side="right", padx=(10, 30), expand=True, fill="x")
 
     # --- EXPORTACION A EXCEL ---
     def exportar_a_excel(self):
