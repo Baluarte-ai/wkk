@@ -59,12 +59,14 @@ MAPEO = {
     'b002_off':     {'db': 1, 'start': 2,  'size': 2}, # VW2 (Oculto)
     'b004_retardo': {'db': 1, 'start': 4,  'size': 2}, # VW4 (Segundo)
     'b001_ax':      {'db': 1, 'start': 6,  'size': 2}, # VW6 (Gráfica)
-    'piston':       {'db': 1, 'start': 10, 'size': 1, 'bit': 0}, # V10.0
+    'b008_max':     {'db': 1, 'start': 8,  'size': 2}, # VW8 (Fuerza Máxima)
+    'b010_max_off': {'db': 1, 'start': 10, 'size': 2}, # VW10 (Máxima Oculto)
+    'piston':       {'db': 1, 'start': 12, 'size': 1, 'bit': 0}, # V12.0 (Pistón desplazado)
     
-    # --- INDICADORES (SALIDAS DE RED EN BYTE 12) ---
-    'barrera':      {'db': 1, 'start': 12, 'size': 1, 'bit': 0}, # V12.0
-    'emergencia':   {'db': 1, 'start': 12, 'size': 1, 'bit': 1}, # V12.1
-    'inicio_btn':   {'db': 1, 'start': 12, 'size': 1, 'bit': 2}  # V12.2
+    # --- INDICADORES (SALIDAS DE RED EN BYTE 14) ---
+    'barrera':      {'db': 1, 'start': 14, 'size': 1, 'bit': 0}, # V14.0 (Desplazado)
+    'emergencia':   {'db': 1, 'start': 14, 'size': 1, 'bit': 1}, # V14.1 (Desplazado)
+    'inicio_btn':   {'db': 1, 'start': 14, 'size': 1, 'bit': 2}  # V14.2 (Desplazado)
 }
 
 # --- PALETA DE COLORES PREMIUM (WKK) ---
@@ -106,6 +108,7 @@ class LogoHMI:
         # Historial de gráfica
         self.grafica_datos = collections.deque([0]*50, maxlen=50)
         self.datos_limite = collections.deque([0]*50, maxlen=50)
+        self.datos_maxima = collections.deque([0]*50, maxlen=50)
         self.v6_filtrado_prev = 0
 
         # Estado del usuario
@@ -288,8 +291,10 @@ class LogoHMI:
         if self.perfil_rol == "Operador":
             # Deshabilitar parámetros
             self.entry_v0.config(state="disabled")
+            self.entry_v8.config(state="disabled")
             self.entry_v4.config(state="disabled")
             self.btn_write_v0.config(state="disabled")
+            self.btn_write_v8.config(state="disabled")
             self.btn_write_v4.config(state="disabled")
             
             # Deshabilitar red
@@ -315,8 +320,10 @@ class LogoHMI:
         else:
             # Habilitar parámetros
             self.entry_v0.config(state="normal")
+            self.entry_v8.config(state="normal")
             self.entry_v4.config(state="normal")
             self.btn_write_v0.config(state="normal")
+            self.btn_write_v8.config(state="normal")
             self.btn_write_v4.config(state="normal")
             
             # Habilitar red
@@ -767,6 +774,17 @@ class LogoHMI:
         self.btn_write_v0 = tk.Button(frame_v0, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=lambda: self.escribir_vw('b002_on', self.entry_v0.get(), True))
         self.btn_write_v0.pack(side="left", padx=5)
 
+        # Ajuste VW8 (Fuerza Máxima)
+        frame_v8 = tk.Frame(card_p, bg=COLOR_TARJETA)
+        frame_v8.pack(fill="x", pady=5)
+        tk.Label(frame_v8, text="Fuerza Máxima:", font=("Helvetica", 10), fg=COLOR_TEXTO, bg=COLOR_TARJETA, width=20, anchor="w").pack(side="left")
+        self.lbl_v8 = tk.Label(frame_v8, text="--", font=("Helvetica", 11, "bold"), fg=COLOR_VERDE_WKK, bg=COLOR_TARJETA, width=6, anchor="w")
+        self.lbl_v8.pack(side="left")
+        self.entry_v8 = tk.Entry(frame_v8, font=("Helvetica", 10), width=10, highlightbackground=COLOR_BORDE, highlightthickness=1, relief="flat", justify="center")
+        self.entry_v8.pack(side="left", padx=5)
+        self.btn_write_v8 = tk.Button(frame_v8, text="Guardar", font=("Helvetica", 10, "bold"), fg="white", bg=COLOR_VERDE_WKK, bd=0, padx=12, pady=6, command=lambda: self.escribir_vw('b008_max', self.entry_v8.get(), True))
+        self.btn_write_v8.pack(side="left", padx=5)
+
         # Ajuste VW4 (Segundo timer)
         frame_v4 = tk.Frame(card_p, bg=COLOR_TARJETA)
         frame_v4.pack(fill="x", pady=5)
@@ -1004,6 +1022,7 @@ class LogoHMI:
 
         self.line, = self.ax.plot(self.grafica_datos, color=COLOR_VERDE_WKK, linewidth=2.5, label="Fuerza")
         self.line_limite, = self.ax.plot(self.datos_limite, color="#2196F3", linestyle="--", linewidth=1.5, label="Fuerza Mínima")
+        self.line_maxima, = self.ax.plot(self.datos_maxima, color="#EF4444", linestyle="-.", linewidth=1.5, label="Fuerza Máxima")
         self.ax.legend(loc="upper left", fontsize=9, framealpha=0.9, edgecolor=COLOR_BORDE)
         self.fig.tight_layout(pad=1.5)
 
@@ -1032,7 +1051,7 @@ class LogoHMI:
         self.scrollbar.config(command=self.listbox_log.yview)
 
         # Vincular campos de entrada con el Teclado Virtual del Sistema (Raspberry Pi OS)
-        for entry in [self.entry_v0, self.entry_v4, self.entry_ip, self.entry_rack, self.entry_slot, 
+        for entry in [self.entry_v0, self.entry_v8, self.entry_v4, self.entry_ip, self.entry_rack, self.entry_slot, 
                       self.entry_fecha_filtro, self.entry_new_user, self.entry_new_pass, self.entry_edit_pass]:
             entry.bind("<Button-1>", lambda e: self.abrir_teclado_sistema())
             entry.bind("<Return>", lambda e: self.cerrar_teclado_sistema())
@@ -1147,6 +1166,11 @@ class LogoHMI:
             raw_v6 = self.plc_client.db_read(MAPEO['b001_ax']['db'], MAPEO['b001_ax']['start'], MAPEO['b001_ax']['size'])
             v6 = int(round(max(0, get_int(raw_v6, 0) - OFFSET) / 3.5))
 
+            raw_v8 = self.plc_client.db_read(MAPEO['b008_max']['db'], MAPEO['b008_max']['start'], MAPEO['b008_max']['size'])
+            v8 = int(round(max(0, get_int(raw_v8, 0) - OFFSET) / 3.5))
+
+            self.plc_client.db_read(MAPEO['b010_max_off']['db'], MAPEO['b010_max_off']['start'], MAPEO['b010_max_off']['size'])
+
             raw_piston = self.plc_client.db_read(MAPEO['piston']['db'], MAPEO['piston']['start'], MAPEO['piston']['size'])
             p_act = get_bool(raw_piston, 0, MAPEO['piston']['bit'])
 
@@ -1155,7 +1179,7 @@ class LogoHMI:
             e_act = get_bool(raw_byte12, 0, MAPEO['emergencia']['bit'])
             i_act = get_bool(raw_byte12, 0, MAPEO['inicio_btn']['bit'])
 
-            self.root.after(0, self.update_gui, v0, v4_segundos, v6, p_act, b_act, e_act, i_act)
+            self.root.after(0, self.update_gui, v0, v4_segundos, v6, p_act, b_act, e_act, i_act, v8)
             time.sleep(0.1)
         except Exception as e:
             print(f"Error de red detectado: {e}")
@@ -1219,7 +1243,7 @@ class LogoHMI:
             return
         try:
             valor_entero = int(valor_str)
-            if vw_name == 'b002_on':
+            if vw_name in ['b002_on', 'b008_max']:
                 valor_final = int(round(valor_entero * 3.5)) + OFFSET
             else:
                 valor_final = valor_entero + OFFSET if usar_offset else valor_entero
@@ -1235,6 +1259,13 @@ class LogoHMI:
                 set_int(buffer_v2, 0, valor_final_v2)
                 self.plc_client.db_write(MAPEO['b002_off']['db'], MAPEO['b002_off']['start'], buffer_v2)
                 self.update_status_gui(f"Fuerza Mínima modificada a {valor_entero}.", "blue")
+            elif vw_name == 'b008_max':
+                valor_v10 = int(round(valor_entero * 3.5)) - 10
+                valor_final_v10 = valor_v10 + OFFSET 
+                buffer_v10 = bytearray(2)
+                set_int(buffer_v10, 0, valor_final_v10)
+                self.plc_client.db_write(MAPEO['b010_max_off']['db'], MAPEO['b010_max_off']['start'], buffer_v10)
+                self.update_status_gui(f"Fuerza Máxima modificada a {valor_entero}.", "blue")
         except ValueError:
             messagebox.showerror("Error", "Ingresa un número entero válido.")
         except Exception as e:
@@ -1257,7 +1288,7 @@ class LogoHMI:
             print(f"Fallo de escritura: {e}")
 
     # --- ACTUALIZACIÓN DE INTERFAZ ---
-    def update_gui(self, v0, v4, v6, p_act, b_act, e_act, i_act):
+    def update_gui(self, v0, v4, v6, p_act, b_act, e_act, i_act, v8):
         if not self.is_connected: return
 
         # Aplicar filtro de promedio móvil exponencial (EMA) para suavizar la fuerza y remover picos rápidos
@@ -1266,6 +1297,7 @@ class LogoHMI:
         self.v6_filtrado_prev = v6_filtrado
 
         self.lbl_v0.config(text=str(v0))
+        self.lbl_v8.config(text=str(v8))
         self.lbl_v4.config(text=f"{v4:.1f} s")
         self.lbl_v6_actual.config(text=f"Valor actual: {v6_filtrado}")
 
@@ -1276,8 +1308,6 @@ class LogoHMI:
             if self.cycle_start_time is None:
                 self.cycle_start_time = time.time()
                 self.cycle_forces_list = []  # Inicializar lista vacía para ignorar el golpe inicial
-                self.grafica_datos.clear()   # Limpiar trazado de gráfica anterior al iniciar ciclo
-                self.datos_limite.clear()
                 if hasattr(self, 'lbl_average_display_oper') and self.lbl_average_display_oper.winfo_exists():
                     self.lbl_average_display_oper.config(text="Prensando...")
                 if hasattr(self, 'lbl_average_display_admin') and self.lbl_average_display_admin.winfo_exists():
@@ -1299,7 +1329,11 @@ class LogoHMI:
                     else:
                         average_force = v6_filtrado
                     
-                    resultado = "OK" if average_force >= v0 else "NOK"
+                    # Ventana de control de calidad usando Fuerza Máxima si está configurada (> 0)
+                    if v8 > 0:
+                        resultado = "OK" if (v0 <= average_force <= v8) else "NOK"
+                    else:
+                        resultado = "OK" if average_force >= v0 else "NOK"
                     
                     # Registrar en base de datos
                     self.registrar_ciclo_db(average_force, resultado, v0)
@@ -1405,10 +1439,10 @@ class LogoHMI:
         except Exception:
             pass
 
-        # Actualizar gráfica solo si el proceso está activo
-        if proceso_activo:
-            self.grafica_datos.append(v6_filtrado)
-            self.datos_limite.append(v0)
+        # Actualizar gráfica siempre (en reposo y en proceso)
+        self.grafica_datos.append(v6_filtrado)
+        self.datos_limite.append(v0)
+        self.datos_maxima.append(v8)
 
         # Redibujar gráfica solo cada 5 ciclos (~500ms) para no bloquear el hilo GUI y mantener la respuesta táctil
         draw_cnt = getattr(self, 'graph_draw_counter', 0)
@@ -1419,10 +1453,12 @@ class LogoHMI:
             self.line.set_ydata(list(self.grafica_datos))
             self.line_limite.set_xdata(list(range(len(self.datos_limite))))
             self.line_limite.set_ydata(list(self.datos_limite))
+            self.line_maxima.set_xdata(list(range(len(self.datos_maxima))))
+            self.line_maxima.set_ydata(list(self.datos_maxima))
             self.ax.set_xlim(0, 50)
 
             max_val = max(self.grafica_datos) if self.grafica_datos else 0
-            max_limit = max(max_val, v0)
+            max_limit = max(max_val, v0, v8)
             if max_limit > self.ax.get_ylim()[1]:
                 self.ax.set_ylim(0, max_limit + (max_limit * 0.15))
             elif max_limit < self.ax.get_ylim()[1] * 0.5 and self.ax.get_ylim()[1] > 100:
