@@ -1439,8 +1439,23 @@ class LogoHMI:
         except Exception:
             pass
 
+        # Mantener historial para detectar constancia (últimas 10 muestras ~1 segundo)
+        if not hasattr(self, 'recent_forces_history'):
+            self.recent_forces_history = collections.deque([0]*10, maxlen=10)
+        self.recent_forces_history.append(v6_filtrado)
+
+        # Se considera constante si la variación máxima en las últimas 10 muestras es <= 1 kg
+        es_constante = (max(self.recent_forces_history) - min(self.recent_forces_history)) <= 1
+
+        # Si el proceso no está activo y la fuerza es <= 5 o es constante, graficamos 0 para limpiar el reposo.
+        # Si el proceso está activo, siempre graficamos el valor real filtrado.
+        if not proceso_activo and (v6_filtrado <= 5 or es_constante):
+            v6_graficar = 0
+        else:
+            v6_graficar = v6_filtrado
+
         # Actualizar gráfica siempre (en reposo y en proceso)
-        self.grafica_datos.append(v6_filtrado)
+        self.grafica_datos.append(v6_graficar)
         self.datos_limite.append(v0)
         self.datos_maxima.append(v8)
 
