@@ -1567,7 +1567,7 @@ class LogoHMI:
 
             cambiar_color_led(self.c_piston, self.led_piston, proceso_activo)
             cambiar_color_led(self.c_barrera, self.led_barrera, b_act)
-            cambiar_color_led(self.c_emergencia, self.led_emergencia, not e_act)
+            cambiar_color_led(self.c_emergencia, self.led_emergencia, e_act)
             cambiar_color_led(self.c_inicio, self.led_inicio, i_act)
         else: # Perfil: Operador
             # 1. Estado del Proceso (Pistón)
