@@ -1415,10 +1415,10 @@ class LogoHMI:
         if proceso_activo and self.cycle_start_time is not None:
             elapsed = time.time() - self.cycle_start_time
             pct = min(elapsed / v4_lim, 1.0)
-            status_text = f"Progreso del Ciclo: {elapsed:.1f} s / {v4:.1f} s"
+            status_text = f"Progreso del Ciclo: {elapsed:.1f} s"
         else:
             pct = 0.0
-            status_text = f"Ciclo Inactivo (Límite: {v4:.1f} s)"
+            status_text = "Ciclo Inactivo"
         
         # Actualizar textos de progreso
         if hasattr(self, 'lbl_progress_status_oper') and self.lbl_progress_status_oper.winfo_exists():
