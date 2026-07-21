@@ -59,7 +59,7 @@ def guardar_config_red(ip, rack, slot, tiempo_ciclo):
     except Exception as e:
         print(f"Error al guardar config de red: {e}")
 
-OFFSET = 1925 # Desplazamiento de +10 kg en HMI/Registros (1960 - 35)
+OFFSET = 1960
 
 # --- MAPEO COMPLETO DE MEMORIA ---
 MAPEO = {
