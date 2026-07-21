@@ -4,27 +4,31 @@ import sys
 import stat
 
 def configurar_autostart():
-    # 1. Obtener la ruta absoluta del script Codigo.py
+    # 1. Obtener la ruta absoluta de Codigo.py y del script bash de inicio
     dir_actual = os.path.dirname(os.path.abspath(__file__))
     ruta_codigo = os.path.join(dir_actual, "Codigo.py")
+    ruta_sh = os.path.join(dir_actual, "arrancar_hmi.sh")
     
-    if not os.path.exists(ruta_codigo):
-        print(f"Error: No se encontró 'Codigo.py' en la carpeta actual: {dir_actual}")
-        print("Por favor, ejecuta este script desde la misma carpeta donde está 'Codigo.py'.")
+    if not os.path.exists(ruta_sh):
+        print(f"Error: No se encontró 'arrancar_hmi.sh' en la carpeta actual: {dir_actual}")
         return
 
-    # 2. Asegurar que Codigo.py tenga permisos de ejecución en Linux
+    # 2. Asegurar que Codigo.py y arrancar_hmi.sh tengan permisos de ejecución en Linux
     try:
         st = os.stat(ruta_codigo)
         os.chmod(ruta_codigo, st.st_mode | stat.S_IEXEC)
         print("-> Se agregaron permisos de ejecución a Codigo.py")
     except Exception as e:
-        print(f"Advertencia al dar permisos de ejecución: {e}")
+        print(f"Advertencia al dar permisos de ejecución a Codigo.py: {e}")
 
-    # 3. Determinar el ejecutable de Python a usar
-    python_path = sys.executable
+    try:
+        st = os.stat(ruta_sh)
+        os.chmod(ruta_sh, st.st_mode | stat.S_IEXEC)
+        print("-> Se agregaron permisos de ejecución a arrancar_hmi.sh")
+    except Exception as e:
+        print(f"Advertencia al dar permisos de ejecución a arrancar_hmi.sh: {e}")
 
-    # 4. Definir la ruta del directorio autostart del usuario en Linux (~/.config/autostart)
+    # 3. Definir la ruta del directorio autostart del usuario en Linux (~/.config/autostart)
     home_dir = os.path.expanduser("~")
     autostart_dir = os.path.join(home_dir, ".config", "autostart")
     
@@ -35,13 +39,12 @@ def configurar_autostart():
         
     desktop_file_path = os.path.join(autostart_dir, "wkk_hmi.desktop")
 
-    # 5. Contenido del archivo .desktop
-    # Path es el directorio de trabajo (working directory)
+    # 4. Contenido del archivo .desktop para lanzar el script bash
     contenido = f"""[Desktop Entry]
 Type=Application
 Name=WKK HMI
-Comment=Inicio automático del Sistema SCADA WKK
-Exec={python_path} {ruta_codigo}
+Comment=Inicio automático y actualización del Sistema SCADA WKK
+Exec=/bin/bash {ruta_sh}
 Path={dir_actual}
 Terminal=false
 NoDisplay=false
@@ -60,10 +63,9 @@ X-GNOME-Autostart-enabled=true
         print(f"Se ha creado el archivo de inicio automático en:")
         print(f"  {desktop_file_path}")
         print(f"\nDetalles del inicio automático:")
-        print(f"  - Ejecutable de Python: {python_path}")
-        print(f"  - Script a ejecutar: {ruta_codigo}")
+        print(f"  - Script de arranque: {ruta_sh}")
         print(f"  - Directorio de trabajo: {dir_actual}")
-        print("\nEl programa se iniciará automáticamente en la pantalla de inicio la próxima vez que inicies sesión en la interfaz gráfica (Desktop).")
+        print("\nEl programa se actualizará y se iniciará automáticamente la próxima vez que inicies sesión en la interfaz gráfica (Desktop).")
     except Exception as e:
         print(f"\nError al escribir el archivo de inicio automático: {e}")
 

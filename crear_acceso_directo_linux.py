@@ -4,21 +4,28 @@ import sys
 import stat
 
 def crear_acceso_directo():
-    # 1. Obtener la ruta absoluta del script Codigo.py
+    # 1. Obtener la ruta absoluta de Codigo.py y del script bash de inicio
     dir_actual = os.path.dirname(os.path.abspath(__file__))
     ruta_codigo = os.path.join(dir_actual, "Codigo.py")
+    ruta_sh = os.path.join(dir_actual, "arrancar_hmi.sh")
     ruta_logo = os.path.join(dir_actual, "assets", "Logo WKK.png")
     
-    if not os.path.exists(ruta_codigo):
-        print(f"Error: No se encontró 'Codigo.py' en la carpeta actual: {dir_actual}")
+    if not os.path.exists(ruta_sh):
+        print(f"Error: No se encontró 'arrancar_hmi.sh' en la carpeta actual: {dir_actual}")
         return
 
-    # 2. Asegurar permisos de ejecución a Codigo.py
+    # 2. Asegurar permisos de ejecución a Codigo.py y arrancar_hmi.sh
     try:
         st = os.stat(ruta_codigo)
         os.chmod(ruta_codigo, st.st_mode | stat.S_IEXEC)
     except Exception as e:
         print(f"Advertencia al dar permisos de ejecución a Codigo.py: {e}")
+
+    try:
+        st = os.stat(ruta_sh)
+        os.chmod(ruta_sh, st.st_mode | stat.S_IEXEC)
+    except Exception as e:
+        print(f"Advertencia al dar permisos de ejecución a arrancar_hmi.sh: {e}")
 
     # 3. Determinar el directorio del Escritorio (en inglés o español)
     home_dir = os.path.expanduser("~")
@@ -35,14 +42,13 @@ def crear_acceso_directo():
         desktop_dir = home_dir  # Caída de respaldo al home si no se encuentra ninguno
 
     desktop_file_path = os.path.join(desktop_dir, "wkk_hmi.desktop")
-    python_path = sys.executable
 
-    # 4. Contenido del acceso directo (.desktop)
+    # 4. Contenido del acceso directo (.desktop) apuntando a arrancar_hmi.sh
     contenido = f"""[Desktop Entry]
 Type=Application
 Name=WKK HMI
-Comment=Iniciar Sistema SCADA WKK
-Exec={python_path} {ruta_codigo}
+Comment=Iniciar y actualizar Sistema SCADA WKK
+Exec=/bin/bash {ruta_sh}
 Path={dir_actual}
 Icon={ruta_logo}
 Terminal=false
