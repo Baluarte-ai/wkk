@@ -140,12 +140,16 @@ class LogoHMI:
 
         # Inicializar base de datos
         self.inicializar_db()
+        self.cargar_contadores_db()
 
         # Construir Interfaz Gráfica
         self.create_widgets()
         
         # Aplicar permisos iniciales de Operador
         self.aplicar_permisos()
+
+        # Cargar los contadores iniciales en los labels
+        self.actualizar_interfaz_contadores()
 
         # Iniciar la auto-conexión automática en segundo plano
         threading.Thread(target=self.communication_loop, daemon=True).start()
@@ -298,6 +302,53 @@ class LogoHMI:
             conn.close()
         except Exception as e:
             print(f"Error al registrar ciclo en SQLite: {e}")
+
+    def cargar_contadores_db(self):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM registros WHERE resultado = 'OK'")
+            self.total_ok_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM registros WHERE resultado = 'NOK'")
+            self.total_nok_count = cursor.fetchone()[0]
+            
+            # Obtener la última pieza registrada
+            cursor.execute("SELECT resultado, valor_fuerza FROM registros ORDER BY id DESC LIMIT 1")
+            row = cursor.fetchone()
+            if row:
+                self.last_piece_result = row[0]
+                self.last_piece_force = row[1]
+            else:
+                self.last_piece_result = "--"
+                self.last_piece_force = 0
+            conn.close()
+        except Exception as e:
+            print(f"Error al cargar contadores desde la DB: {e}")
+            self.total_ok_count = 0
+            self.total_nok_count = 0
+            self.last_piece_result = "--"
+            self.last_piece_force = 0
+
+    def actualizar_interfaz_contadores(self):
+        # Refrescar labels del operador
+        if hasattr(self, 'lbl_last_piece') and self.lbl_last_piece.winfo_exists():
+            bg_color = COLOR_OK if self.last_piece_result == "OK" else (COLOR_NOK if self.last_piece_result == "NOK" else "#E2E8F0")
+            fg_color = "white" if self.last_piece_result in ["OK", "NOK"] else COLOR_TEXTO_SEC
+            self.lbl_last_piece.config(text=f"ÚLTIMA PIEZA: {self.last_piece_result}", bg=bg_color, fg=fg_color)
+            self.lbl_last_force.config(text=f"Fuerza Registrada: {self.last_piece_force} kg" if self.last_piece_force > 0 else "Fuerza Registrada: --")
+            self.lbl_counter_ok.config(text=f"OK: {self.total_ok_count}")
+            self.lbl_counter_nok.config(text=f"NOK: {self.total_nok_count}")
+            self.lbl_average_display_oper.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
+        
+        # Refrescar labels del administrador
+        if hasattr(self, 'lbl_last_piece_admin') and self.lbl_last_piece_admin.winfo_exists():
+            bg_color = COLOR_OK if self.last_piece_result == "OK" else (COLOR_NOK if self.last_piece_result == "NOK" else "#E2E8F0")
+            fg_color = "white" if self.last_piece_result in ["OK", "NOK"] else COLOR_TEXTO_SEC
+            self.lbl_last_piece_admin.config(text=f"ÚLTIMA PIEZA: {self.last_piece_result}", bg=bg_color, fg=fg_color)
+            self.lbl_last_force_admin.config(text=f"Fuerza Registrada: {self.last_piece_force} kg" if self.last_piece_force > 0 else "Fuerza Registrada: --")
+            self.lbl_counter_ok_admin.config(text=f"OK: {self.total_ok_count}")
+            self.lbl_counter_nok_admin.config(text=f"NOK: {self.total_nok_count}")
+            self.lbl_average_display_admin.config(text=f"{self.last_piece_force} kg" if self.last_piece_force > 0 else "-- kg")
 
     # --- PANTALLAS Y LOGICA DE LOGIN ---
     def aplicar_permisos(self):
@@ -1793,6 +1844,12 @@ class LogoHMI:
                     cursor.execute("DELETE FROM registros")
                     conn.commit()
                     conn.close()
+
+                    self.total_ok_count = 0
+                    self.total_nok_count = 0
+                    self.last_piece_result = "--"
+                    self.last_piece_force = 0
+                    self.actualizar_interfaz_contadores()
 
                     self.refrescar_tabla_gui()
                     self.listbox_log.delete(0, tk.END)
